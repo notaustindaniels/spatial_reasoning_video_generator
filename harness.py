@@ -45,6 +45,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -234,6 +236,7 @@ async def main_async(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    load_dotenv()
     args = parse_args()
 
     # Check auth (not needed for synthesize/integrate if progress map exists)
