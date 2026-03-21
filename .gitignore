@@ -17,3 +17,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# SSH
+.ssh/
