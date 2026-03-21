@@ -3,34 +3,25 @@
 Depthkit Multi-Agent Harness
 =============================
 
-A peer-review-structured harness that produces a DAG of testable objectives
-for building depthkit — a custom Node.js 2.5D parallax video engine.
+A peer-review-structured harness that decomposes the depthkit seed document
+into a DAG of testable objectives, then uses Explorer → Reviewer → (Director)
+agent loops to build the engine incrementally.
 
-Architecture (from video_multi_agent_harness_spec_v2):
-- Seed-driven coherence (seed_v3.md)
-- Multi-agent peer review (Explorer → Reviewer → Director)
-- DAG-structured progress tracking (index.json + per-node directories)
-
-Agent Roles:
-- Initializer: Decomposes seed into DAG of objectives (runs once)
-- Explorer: Implements one objective per session
-- Reviewer: Independent peer review with constructive critique
-- Director: Gemini-powered visual tuning (HITL circuit breaker)
-- Integrator: Periodic coherence check across verified nodes
-- Synthesizer: Assembles verified nodes into final deliverable
+The output DAG (index.json + node directories) serves as the spec sheet
+for a downstream execution harness.
 
 Usage:
-    # Initialize and start autonomous loop
-    python main.py --seed ./seed_v3.md
+    python main.py                                    # Run with defaults
+    python main.py --project-dir ./my-depthkit        # Custom project dir
+    python main.py --max-iterations 5                 # Limit iterations
+    python main.py --no-review                        # Skip peer review
+    python main.py --model claude-sonnet-4-5-20250929 # Specific model
 
-    # Run specific role
-    python main.py --seed ./seed_v3.md --role explorer --node OBJ-042
-
-    # Limit iterations for testing
-    python main.py --seed ./seed_v3.md --max-iterations 5
-
-    # Continue existing project
-    python main.py --seed ./seed_v3.md --project-dir ./generations/depthkit
+Environment Variables:
+    CLAUDE_CODE_OAUTH_TOKEN   Required. Your Claude Code OAuth token.
+    CLAUDE_MODEL              Optional. Override the default model.
+    PROJECT_DIR               Optional. Override the default project dir.
+    MAX_ITERATIONS            Optional. Max explorer iterations.
 """
 
 import argparse
@@ -41,167 +32,194 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from orchestrator import run_orchestrator
+from orchestrator import run_harness
 
 
-# Load .env from the harness directory
-load_dotenv(Path(__file__).parent / ".env")
+# ──────────────────────────────────────────────────────────────
+# Defaults
+# ──────────────────────────────────────────────────────────────
+
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_PROJECT_DIR = "./depthkit"
+DEFAULT_AUTO_CONTINUE_DELAY = 3
+DEFAULT_INTEGRATOR_CADENCE = 15
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Depthkit Multi-Agent Harness — DAG-structured autonomous development",
+        description="Depthkit Multi-Agent Harness — builds a DAG of objectives from the seed document",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Start from scratch (initializes DAG, then explores)
-  python main.py --seed ./seed_v3.md
+  # Fresh start
+  python main.py --project-dir ./depthkit
 
-  # Continue existing project
-  python main.py --seed ./seed_v3.md --project-dir generations/depthkit
+  # Resume existing project
+  python main.py --project-dir ./depthkit
 
-  # Run a specific role on a specific node
-  python main.py --seed ./seed_v3.md --role reviewer --node OBJ-003
+  # Limit to 5 explorer iterations (good for testing)
+  python main.py --project-dir ./depthkit --max-iterations 5
 
-  # Run only the initializer (decompose seed into DAG)
-  python main.py --seed ./seed_v3.md --role initializer --max-iterations 1
+  # Skip peer review (faster, less thorough)
+  python main.py --project-dir ./depthkit --no-review
 
-  # Run with limited iterations for testing
-  python main.py --seed ./seed_v3.md --max-iterations 5
+  # Use a specific model
+  python main.py --model claude-sonnet-4-5-20250929
 
-  # Use a different model
-  python main.py --seed ./seed_v3.md --model claude-sonnet-4-5-20250929
-
-Environment Variables (set in .env or export):
-  CLAUDE_CODE_OAUTH_TOKEN   Required. Claude Code OAuth token.
-  GEMINI_API_KEY            Optional. For Director Agent visual tuning.
-  CLAUDE_MODEL              Default model (overridden by --model).
-  HITL_ENABLED              Enable/disable HITL circuit breaker (default: true).
+Environment Variables:
+  CLAUDE_CODE_OAUTH_TOKEN    Your Claude Code OAuth token (required)
+  CLAUDE_MODEL               Override the model (optional)
+  PROJECT_DIR                Override the project directory (optional)
+  MAX_ITERATIONS             Override max iterations (optional)
         """,
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=Path,
-        required=True,
-        help="Path to the seed document (e.g., ./seed_v3.md)",
     )
 
     parser.add_argument(
         "--project-dir",
         type=Path,
         default=None,
-        help="Project directory (default: generations/<seed_name>)",
+        help=f"Project directory (default: from .env or {DEFAULT_PROJECT_DIR}). "
+             "Relative paths placed under generations/.",
     )
 
     parser.add_argument(
         "--max-iterations",
         type=int,
         default=None,
-        help="Maximum number of agent sessions (default: unlimited)",
+        help="Maximum explorer iterations (default: unlimited or from .env)",
     )
 
     parser.add_argument(
         "--model",
         type=str,
         default=None,
-        help="Claude model to use (default: from .env or claude-sonnet-4-5-20250929)",
+        help=f"Claude model to use (default: from .env or {DEFAULT_MODEL})",
     )
 
     parser.add_argument(
-        "--role",
-        type=str,
-        choices=["initializer", "explorer", "reviewer", "director", "integrator", "synthesizer"],
-        default=None,
-        help="Force a specific role for this run",
+        "--no-review",
+        action="store_true",
+        help="Skip peer review after explorer sessions",
     )
 
     parser.add_argument(
-        "--node",
-        type=str,
-        default=None,
-        help="Target a specific node ID (e.g., OBJ-042)",
-    )
-
-    parser.add_argument(
-        "--max-turns",
+        "--auto-continue-delay",
         type=int,
         default=None,
-        help="Max turns per agent session (default: from .env or 1000)",
+        help=f"Seconds between sessions (default: {DEFAULT_AUTO_CONTINUE_DELAY})",
     )
 
     parser.add_argument(
         "--integrator-cadence",
         type=int,
         default=None,
-        help="Run integrator every N explorer completions (default: from .env or 15)",
+        help=f"Run integrator every N explorer completions (default: {DEFAULT_INTEGRATOR_CADENCE})",
     )
 
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def resolve_config(args: argparse.Namespace) -> dict:
+    """Resolve configuration from args → env → defaults."""
+    config = {}
 
-    # ── Validate environment ──
+    # Model
+    config["model"] = (
+        args.model
+        or os.environ.get("CLAUDE_MODEL")
+        or DEFAULT_MODEL
+    )
 
-    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        print("Error: CLAUDE_CODE_OAUTH_TOKEN not set.")
-        print()
-        print("Set it in .env or export it:")
-        print("  export CLAUDE_CODE_OAUTH_TOKEN='your-token-here'")
-        print()
-        print("Get your token from: https://console.anthropic.com/")
-        sys.exit(1)
+    # Project directory
+    project_dir_str = (
+        str(args.project_dir) if args.project_dir
+        else os.environ.get("PROJECT_DIR")
+        or DEFAULT_PROJECT_DIR
+    )
+    project_dir = Path(project_dir_str)
 
-    if not args.seed.exists():
-        print(f"Error: Seed file not found: {args.seed}")
-        sys.exit(1)
-
-    # ── Resolve configuration ──
-
-    model = args.model or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
-    max_turns = args.max_turns or int(os.environ.get("MAX_TURNS", "1000"))
-    integrator_cadence = args.integrator_cadence or int(os.environ.get("INTEGRATOR_CADENCE", "15"))
-
-    # Resolve project directory
-    if args.project_dir:
-        project_dir = args.project_dir
-    else:
-        # Default: generations/<seed_stem>
-        project_dir = Path("generations") / args.seed.stem
-
-    # Normalize relative paths under generations/
+    # Place relative paths under generations/
     if not project_dir.is_absolute() and not str(project_dir).startswith("generations/"):
         project_dir = Path("generations") / project_dir
+    config["project_dir"] = project_dir
 
-    # ── Check Gemini if director role is requested ──
+    # Max iterations
+    max_iter_env = os.environ.get("MAX_ITERATIONS")
+    config["max_iterations"] = (
+        args.max_iterations
+        or (int(max_iter_env) if max_iter_env else None)
+    )
 
-    if args.role == "director" and not os.environ.get("GEMINI_API_KEY"):
-        print("Warning: GEMINI_API_KEY not set. Director visual tuning will be skipped.")
-        print("Set it in .env to enable: GEMINI_API_KEY=your-key-here")
+    # Review
+    config["review_after_explore"] = not args.no_review
+    if os.environ.get("REVIEW_AFTER_EXPLORE", "").lower() == "false":
+        config["review_after_explore"] = False
+
+    # Auto-continue delay
+    delay_env = os.environ.get("AUTO_CONTINUE_DELAY")
+    config["auto_continue_delay"] = (
+        args.auto_continue_delay
+        or (int(delay_env) if delay_env else DEFAULT_AUTO_CONTINUE_DELAY)
+    )
+
+    # Integrator cadence
+    cadence_env = os.environ.get("INTEGRATOR_CADENCE")
+    config["integrator_cadence"] = (
+        args.integrator_cadence
+        or (int(cadence_env) if cadence_env else DEFAULT_INTEGRATOR_CADENCE)
+    )
+
+    return config
+
+
+def main() -> None:
+    """Main entry point."""
+    # Load .env file
+    load_dotenv()
+
+    args = parse_args()
+    config = resolve_config(args)
+
+    # Verify OAuth token
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        print("Error: CLAUDE_CODE_OAUTH_TOKEN environment variable not set.")
         print()
+        print("Set it in your .env file or export it:")
+        print("  export CLAUDE_CODE_OAUTH_TOKEN='your-oauth-token-here'")
+        print()
+        print("Or copy .env.example to .env and fill in the value.")
+        sys.exit(1)
 
-    # ── Run ──
+    # Print configuration
+    print()
+    print("  Configuration:")
+    print(f"    Model:              {config['model']}")
+    print(f"    Project dir:        {config['project_dir']}")
+    print(f"    Max iterations:     {config['max_iterations'] or 'unlimited'}")
+    print(f"    Peer review:        {'enabled' if config['review_after_explore'] else 'disabled'}")
+    print(f"    Continue delay:     {config['auto_continue_delay']}s")
+    print(f"    Integrator cadence: every {config['integrator_cadence']} explorations")
+    print()
 
+    # Run the harness
     try:
         asyncio.run(
-            run_orchestrator(
-                project_dir=project_dir,
-                seed_path=args.seed.resolve(),
-                model=model,
-                max_iterations=args.max_iterations,
-                max_turns=max_turns,
-                integrator_cadence=integrator_cadence,
-                target_node=args.node,
-                role_override=args.role,
+            run_harness(
+                project_dir=config["project_dir"],
+                model=config["model"],
+                max_iterations=config["max_iterations"],
+                auto_continue_delay=config["auto_continue_delay"],
+                review_after_explore=config["review_after_explore"],
+                integrator_cadence=config["integrator_cadence"],
             )
         )
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user.")
-        print("To resume, run the same command again.")
+        print("\n\n  Interrupted by user.")
+        print("  To resume, run the same command again — the harness picks up where it left off.")
+        print()
     except Exception as e:
-        print(f"\nFatal error: {e}")
+        print(f"\n  Fatal error: {e}")
         raise
 
 

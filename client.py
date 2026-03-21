@@ -2,12 +2,11 @@
 Claude SDK Client Configuration
 ================================
 
-Creates role-specific Claude Agent SDK clients for each harness role.
-Each role gets a tailored system prompt, tool set, and security configuration.
+Creates and configures Claude Agent SDK clients for each harness role.
+Uses defense-in-depth security: sandbox + filesystem restrictions + bash allowlist.
 """
 
 import json
-import os
 from pathlib import Path
 
 from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient
@@ -15,17 +14,6 @@ from claude_code_sdk.types import HookMatcher
 
 from security import bash_security_hook
 
-
-# Puppeteer MCP tools for browser-based testing / preview
-PUPPETEER_TOOLS = [
-    "mcp__puppeteer__puppeteer_navigate",
-    "mcp__puppeteer__puppeteer_screenshot",
-    "mcp__puppeteer__puppeteer_click",
-    "mcp__puppeteer__puppeteer_fill",
-    "mcp__puppeteer__puppeteer_select",
-    "mcp__puppeteer__puppeteer_hover",
-    "mcp__puppeteer__puppeteer_evaluate",
-]
 
 # Built-in tools available to all roles
 BUILTIN_TOOLS = [
@@ -41,23 +29,63 @@ BUILTIN_TOOLS = [
 def create_client(
     project_dir: Path,
     model: str,
-    role: str,
-    system_prompt: str,
-    max_turns: int = 1000,
+    role: str = "explorer",
+    max_turns: int = 500,
+    system_prompt_override: str = "",
 ) -> ClaudeSDKClient:
     """
-    Create a Claude Agent SDK client configured for a specific harness role.
+    Create a Claude Agent SDK client configured for the given role.
 
     Args:
-        project_dir: Working directory for the agent session
-        model: Claude model identifier
-        role: Harness role name (initializer, explorer, reviewer, integrator, synthesizer)
-        system_prompt: The full system prompt for this session
-        max_turns: Maximum conversation turns
+        project_dir: The working directory for this session.
+        model: Claude model identifier.
+        role: Agent role (explorer, reviewer, integrator, synthesizer).
+        max_turns: Maximum tool-use turns per session.
+        system_prompt_override: Optional custom system prompt.
 
     Returns:
-        Configured ClaudeSDKClient
+        A configured ClaudeSDKClient instance.
     """
+    # Role-specific system prompts
+    system_prompts = {
+        "initializer": (
+            "You are the Initializer Agent for the depthkit multi-agent harness. "
+            "Your job is to read the seed document and decompose the project into "
+            "a DAG of discrete, testable objectives. You create index.json, node "
+            "directories, and the initial project scaffolding."
+        ),
+        "explorer": (
+            "You are an Explorer Agent for the depthkit multi-agent harness. "
+            "You are an expert full-stack developer specializing in Node.js, "
+            "Three.js, Puppeteer, and FFmpeg pipelines. You pick up a single "
+            "objective, implement it thoroughly, test it, and commit a discrete "
+            "reviewable artifact to the node directory."
+        ),
+        "reviewer": (
+            "You are a Reviewer Agent for the depthkit multi-agent harness. "
+            "You have a fresh context with no memory of producing the artifact "
+            "under review. Your job is adversarial-but-constructive evaluation: "
+            "find gaps, unstated assumptions, structural weaknesses, constraint "
+            "violations, and vocabulary drift. Every criticism must include a "
+            "proposed fix."
+        ),
+        "integrator": (
+            "You are an Integrator Agent for the depthkit multi-agent harness. "
+            "You read a rotating sample of verified nodes and check for drift, "
+            "inconsistency, missed connections, and seed staleness. You produce "
+            "a coherence report and propose corrections."
+        ),
+        "synthesizer": (
+            "You are a Synthesizer Agent for the depthkit multi-agent harness. "
+            "You assemble verified node outputs into coherent deliverables. "
+            "You do not produce new results — you organize and integrate "
+            "existing ones into their final form."
+        ),
+    }
+
+    system_prompt = system_prompt_override or system_prompts.get(role, system_prompts["explorer"])
+
+    # Security settings
     security_settings = {
         "sandbox": {"enabled": True, "autoAllowBashIfSandboxed": True},
         "permissions": {
@@ -69,40 +97,21 @@ def create_client(
                 "Glob(./**)",
                 "Grep(./**)",
                 "Bash(*)",
-                *PUPPETEER_TOOLS,
             ],
         },
     }
 
     project_dir.mkdir(parents=True, exist_ok=True)
+
     settings_file = project_dir / ".claude_settings.json"
     with open(settings_file, "w") as f:
         json.dump(security_settings, f, indent=2)
-
-    # Only explorers get browser tools (for preview mode testing)
-    allowed_tools = list(BUILTIN_TOOLS)
-    mcp_servers = {}
-
-    if role in ("explorer", "initializer"):
-        allowed_tools.extend(PUPPETEER_TOOLS)
-        mcp_servers["puppeteer"] = {
-            "command": "npx",
-            "args": ["puppeteer-mcp-server"],
-        }
-
-    print(f"  [{role.upper()}] Client configured:")
-    print(f"    Model: {model}")
-    print(f"    CWD: {project_dir.resolve()}")
-    print(f"    Sandbox: enabled")
-    print(f"    MCP servers: {list(mcp_servers.keys()) or 'none'}")
-    print()
 
     return ClaudeSDKClient(
         options=ClaudeCodeOptions(
             model=model,
             system_prompt=system_prompt,
-            allowed_tools=allowed_tools,
-            mcp_servers=mcp_servers if mcp_servers else None,
+            allowed_tools=BUILTIN_TOOLS,
             hooks={
                 "PreToolUse": [
                     HookMatcher(matcher="Bash", hooks=[bash_security_hook]),

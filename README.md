@@ -1,197 +1,224 @@
 # Depthkit Multi-Agent Harness
 
-A peer-review-structured autonomous coding harness that decomposes the **depthkit** seed document into a DAG of testable objectives, then uses multiple agent roles to explore, review, visually tune, and converge on a production-quality 2.5D parallax video engine.
+A peer-review-structured harness that decomposes the **depthkit** seed document into a directed acyclic graph (DAG) of testable objectives, then uses a multi-agent loop (Explorer → Reviewer → Director) to build the engine incrementally.
 
-## Architecture
+The output DAG (`index.json` + node directories) serves as the **spec sheet** for a downstream execution harness.
 
-This harness implements the **Multi-Agent Seed Harness v2** framework:
+## What is Depthkit?
 
-- **Seed-Driven Coherence** — The seed document (`seed_v3.md`) provides binding vocabulary, constraints, testable claims, and success criteria. Every agent session loads it.
-- **Multi-Agent Peer Review** — Explorer output is reviewed by independent Reviewer sessions with decorrelated blind spots.
-- **DAG-Structured Progress** — Objectives are tracked as nodes in a directed acyclic graph. Each node is a directory containing metadata, output, reviews, and (for visual nodes) test renders and critiques.
-- **Director Agent (Gemini)** — For visual-output objectives, Google Gemini reviews raw MP4 test renders and provides timestamped, directional feedback under a strict Human-in-the-Loop circuit breaker.
+Depthkit is a custom, zero-license Node.js video engine that renders 2.5D parallax videos. It uses **Puppeteer** to load a **Three.js** WebGL canvas in headless Chromium, deterministically steps through frames using a virtualized clock, and pipes pixel buffers into **FFmpeg** to produce MP4 output. The engine maps AI-generated 2D images onto flat mesh planes in 3D space, then moves a perspective camera through that scene to create real parallax depth effects.
+
+## How the Harness Works
+
+The harness implements the **Multi-Agent Seed Harness** architecture:
+
+1. **Initialization** — The Initializer agent reads the seed document and decomposes the project into 80–150 discrete objectives, creating a DAG with dependency edges.
+
+2. **Exploration** — Explorer agents pick objectives from the frontier (open objectives whose dependencies are satisfied) and implement them one at a time.
+
+3. **Peer Review** — Reviewer agents evaluate each explorer's artifact in a fresh context window, checking for constraint compliance, vocabulary drift, and quality.
+
+4. **Integration** — Integrator agents periodically sample verified nodes to check for drift, inconsistency, and missed connections across the growing DAG.
+
+5. **Visual Tuning** (optional) — For scene geometry and camera path objectives, the Director Agent (Gemini) provides visual feedback on test renders, gated by human approval (HITL Circuit Breaker).
+
+6. **Convergence** — When all objectives are verified (or documented as dead ends), the DAG is complete.
 
 ## Agent Roles
 
-| Role | Purpose | Model |
-|------|---------|-------|
-| **Initializer** | Decomposes seed into DAG of 50-80 objectives | Claude |
-| **Explorer** | Implements one objective per session | Claude |
-| **Reviewer** | Independent peer review with constructive critique | Claude |
-| **Director** | Visual tuning via multimodal video review (HITL gated) | Gemini |
-| **Integrator** | Periodic coherence check across verified nodes | Claude |
-| **Synthesizer** | Assembles verified nodes into final deliverable | Claude |
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Initializer** | Claude | Decomposes seed into DAG (runs once) |
+| **Explorer** | Claude | Implements a single objective |
+| **Reviewer** | Claude | Adversarial-but-constructive peer review |
+| **Integrator** | Claude | Periodic coherence check across DAG |
+| **Synthesizer** | Claude | Assembles verified results into deliverables |
+| **Director** | Gemini | Visual feedback on renders (HITL-gated) |
 
 ## Prerequisites
 
+**Required:**
+
 ```bash
-# Python 3.10+
-python --version
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Install Claude Code CLI (latest)
+# Install Claude Code CLI
 npm install -g @anthropic-ai/claude-code
+
+# Install Python dependencies
+pip install -r requirements.txt
 ```
 
-## Setup
+**OAuth Token:**
 
 ```bash
-# 1. Copy environment template
-cp .env.example .env
-
-# 2. Set your Claude Code OAuth token (REQUIRED)
-#    Get it from: https://console.anthropic.com/
-echo 'CLAUDE_CODE_OAUTH_TOKEN=your-token-here' >> .env
-
-# 3. Optionally set Gemini API key for visual tuning
-#    Get it from: https://aistudio.google.com/apikey
-echo 'GEMINI_API_KEY=your-key-here' >> .env
+export CLAUDE_CODE_OAUTH_TOKEN='your-oauth-token-here'
 ```
+
+Or copy `.env.example` to `.env` and fill in your token.
 
 ## Quick Start
 
 ```bash
-# Start from scratch — initializes DAG, then loops through explore → review → tune
-python main.py --seed ./seed_v3.md
+# Copy environment template
+cp .env.example .env
+# Edit .env — set CLAUDE_CODE_OAUTH_TOKEN
 
-# Limit iterations for testing
-python main.py --seed ./seed_v3.md --max-iterations 3
-
-# Run only the initializer (decompose seed into DAG)
-python main.py --seed ./seed_v3.md --role initializer --max-iterations 1
-
-# Target a specific objective
-python main.py --seed ./seed_v3.md --role explorer --node OBJ-005
-
-# Force a review pass
-python main.py --seed ./seed_v3.md --role reviewer --node OBJ-005
-
-# Continue existing project
-python main.py --seed ./seed_v3.md --project-dir generations/seed_v3
+# Run the harness
+python main.py --project-dir ./depthkit
 ```
 
-## How It Works
+For testing with limited iterations:
 
-### Phase 1: Initialization
+```bash
+python main.py --project-dir ./depthkit --max-iterations 3
+```
 
-The initializer reads `seed_v3.md` and decomposes it into 50-80 discrete objectives organized as a DAG in `index.json`. Each objective gets its own directory under `nodes/` with a `meta.json` describing what needs to be built, its dependencies, and its priority.
+Skip peer review for faster iteration:
 
-### Phase 2: Explore → Review Loop
+```bash
+python main.py --project-dir ./depthkit --no-review
+```
 
-The orchestrator picks the highest-priority frontier objective (open, all deps satisfied), runs an Explorer session to implement it, then triggers a Reviewer session for independent peer review. Approved objectives are marked `verified`; rejected objectives go back for revision.
+## Timing Expectations
 
-### Phase 3: Visual Tuning (HITL-Gated)
+- **Initialization (Session 1):** 10–30 minutes. The Initializer generates 80–150 objectives with full metadata. This may appear to hang — it's working.
+- **Explorer sessions:** 5–15 minutes each, depending on objective complexity.
+- **Reviewer sessions:** 3–8 minutes each.
+- **Full DAG:** Building all objectives typically requires many hours across multiple sessions.
 
-For objectives that produce visual output (scene geometries, camera presets), the approved node enters a Director Agent loop:
-
-1. Explorer renders a test clip → `test_render.mp4`
-2. Gemini reviews the video and produces a Visual Critique
-3. **Human reviews and approves/modifies/rejects the critique** (HITL Circuit Breaker)
-4. Explorer applies approved feedback and re-renders
-5. Loop until human signs off → node marked `"visual_status": "tuned"`
-
-### Phase 4: Convergence
-
-When all objectives are verified (and visual ones tuned), the Synthesizer assembles the verified outputs into the final depthkit engine.
+**Tip:** Use `--max-iterations 3` for a quick test run.
 
 ## Project Structure
 
 ```
 depthkit-harness/
-├── main.py                  # Entry point
-├── orchestrator.py          # Session dispatch loop
-├── client.py                # Claude SDK client factory
-├── security.py              # Bash command allowlist
-├── prompts_loader.py        # Prompt template loading + context assembly
-├── .env.example             # Environment template
-├── requirements.txt         # Python dependencies
-├── dag/
-│   ├── index.py             # Progress map (index.json) management
-│   ├── frontier.py          # Frontier computation and objective claiming
-│   └── nodes.py             # Per-node directory operations + context assembly
-├── roles/
-│   ├── session.py           # Claude Code SDK session runner
-│   └── director.py          # Gemini visual tuning + HITL gate
-└── prompts/
-    ├── initializer_prompt.md
-    ├── explorer_prompt.md
-    ├── reviewer_prompt.md
-    ├── integrator_prompt.md
-    ├── synthesizer_prompt.md
-    └── director_prompt.md
+├── main.py                    # CLI entry point
+├── orchestrator.py            # Main lifecycle loop
+├── agent.py                   # Session runner for all roles
+├── client.py                  # Claude SDK client configuration
+├── context.py                 # Context assembly per role
+├── dag.py                     # DAG operations (index, frontier, nodes)
+├── security.py                # Bash command allowlist
+├── requirements.txt           # Python dependencies
+├── .env.example               # Environment template
+├── prompts/
+│   ├── seed.md                # The depthkit seed document (v3.0)
+│   ├── initializer_prompt.md  # First session instructions
+│   ├── explorer_prompt.md     # Explorer instructions
+│   ├── reviewer_prompt.md     # Reviewer instructions
+│   ├── integrator_prompt.md   # Integrator instructions
+│   └── synthesizer_prompt.md  # Synthesizer instructions
+└── generations/               # Output projects (gitignored)
+    └── depthkit/              # The generated DAG + artifacts
+        ├── seed.md
+        ├── index.json         # Graph structure
+        ├── frontier.json      # Ready objectives
+        ├── harness-progress.txt
+        ├── nodes/
+        │   ├── OBJ-001/
+        │   │   ├── meta.json
+        │   │   ├── output.md
+        │   │   └── reviews/
+        │   └── ...
+        ├── dead_ends/
+        ├── sessions/
+        ├── synthesis/
+        └── .git
 ```
 
-### Generated Project Structure (after initialization)
+## DAG Output Format
+
+The primary output is `index.json`, which contains the lightweight graph structure:
+
+```json
+{
+  "seed_version": "3.0",
+  "nodes": {
+    "OBJ-001": {
+      "status": "verified",
+      "depends_on": [],
+      "blocks": ["OBJ-004", "OBJ-005"],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null
+    }
+  },
+  "dead_ends": [],
+  "vocabulary_updates": [],
+  "constraint_updates": []
+}
+```
+
+Each node directory contains the full context:
 
 ```
-generations/seed_v3/
-├── seed.md                  # Copy of the seed document
-├── index.json               # DAG structure: IDs, edges, statuses
-├── frontier.json            # Materialized work queue
-├── claude-progress.txt      # Session progress notes
-├── nodes/
-│   ├── OBJ-001/
-│   │   ├── meta.json        # Objective metadata
-│   │   ├── output.md        # Work product
-│   │   └── reviews/
-│   │       └── REV-001.md
-│   ├── OBJ-002/             # (visual-tuning node)
-│   │   ├── meta.json
-│   │   ├── output.md
-│   │   ├── test_render.mp4
-│   │   ├── critiques/
-│   │   │   └── VC-001.md
-│   │   └── reviews/
-│   └── ...
-├── dead_ends/
-├── sessions/
-├── synthesis/
-└── .git
+nodes/OBJ-001/
+├── meta.json      # Objective description, deps, notes
+├── output.md      # The work product (code, docs, test results)
+└── reviews/
+    └── REV-001.md # Peer review feedback
 ```
 
 ## Command Line Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--seed` | Path to seed document | **Required** |
-| `--project-dir` | Project directory | `generations/<seed_name>` |
-| `--max-iterations` | Max agent sessions | Unlimited |
+| `--project-dir` | Project output directory | `./depthkit` |
+| `--max-iterations` | Max explorer iterations | Unlimited |
 | `--model` | Claude model | `claude-sonnet-4-5-20250929` |
-| `--role` | Force a specific role | Auto-detected |
-| `--node` | Target a specific node | Auto-selected from frontier |
-| `--max-turns` | Max turns per session | 1000 |
-| `--integrator-cadence` | Integrator frequency | Every 15 explorer completions |
+| `--no-review` | Skip peer review | Review enabled |
+| `--auto-continue-delay` | Seconds between sessions | 3 |
+| `--integrator-cadence` | Run integrator every N explorations | 15 |
 
-## Key Design Decisions
+## Environment Variables
 
-**Why a DAG, not a linear task list?** Dependencies between objectives are load-bearing. A linear list can't express "the tunnel geometry depends on the interpolation utilities" or "the CLI depends on the manifest schema." The DAG encodes these relationships and ensures objectives are worked on in the right order.
+All options can also be set via `.env`:
 
-**Why per-node directories instead of one big JSON file?** At scale, a monolithic file creates contention (parallel agents writing to the same file), wastes context (every session loads irrelevant nodes), and produces painful merge conflicts. The filesystem IS the distributed memory.
+| Variable | Description |
+|----------|-------------|
+| `CLAUDE_CODE_OAUTH_TOKEN` | **Required.** OAuth token for Claude Code. |
+| `CLAUDE_MODEL` | Model override. |
+| `PROJECT_DIR` | Project directory override. |
+| `MAX_ITERATIONS` | Max iterations override. |
+| `REVIEW_AFTER_EXPLORE` | `true`/`false` — enable peer review. |
+| `AUTO_CONTINUE_DELAY` | Seconds between sessions. |
+| `INTEGRATOR_CADENCE` | Integrator frequency. |
+| `GEMINI_API_KEY` | For Director Agent visual tuning (optional). |
 
-**Why the HITL Circuit Breaker?** Two AI agents giving each other aesthetic feedback will chase each other into increasingly bizarre parameter space. The human grounds the loop. This is a hard constraint, not a guideline.
+## Security Model
 
-**Why Gemini for the Director?** Gemini processes raw video as a first-class input — no frame extraction, no montages, no screenshots. It perceives temporal motion quality (easing, momentum, settling) that frame-by-frame analysis misses.
+Defense-in-depth security, adapted from Anthropic's autonomous coding demo:
 
-## Timing Expectations
+1. **OS-level sandbox** — Bash commands run in an isolated environment.
+2. **Filesystem restrictions** — File operations restricted to the project directory.
+3. **Bash allowlist** — Only specific commands are permitted (see `security.py`). The allowlist includes Node.js, FFmpeg, git, Python, and standard file inspection tools.
+4. **Write isolation** — Each agent writes only to its own node directory. The orchestrator is the sole writer to `index.json`.
 
-- **Initializer session:** 5-15 minutes (generating 50-80 objective descriptions)
-- **Explorer session:** 5-20 minutes per objective
-- **Reviewer session:** 3-10 minutes per review
-- **Director loop:** 5-15 minutes per tuning round (plus human review time)
-- **Full convergence:** Many hours across dozens of sessions
+## Resuming
 
-## Resuming After Interruption
-
-The harness is designed for interruption and resumption. All state is in the filesystem (index.json + node directories) and git. To resume:
+The harness is designed for interruption and resumption:
 
 ```bash
-python main.py --seed ./seed_v3.md --project-dir generations/seed_v3
+# Start
+python main.py --project-dir ./depthkit
+
+# Ctrl+C to pause at any time
+
+# Resume (same command — picks up where it left off)
+python main.py --project-dir ./depthkit
 ```
 
-The orchestrator reads the current DAG state and picks up where it left off.
+Progress is persisted via:
+- `index.json` (graph state)
+- `frontier.json` (ready objectives)
+- Node directories (artifacts, reviews)
+- Git commits (full history)
 
-## License
+## Relationship to the Downstream Harness
 
-Internal use.
+This harness produces the **spec sheet** (the DAG) that a downstream execution harness consumes. The downstream harness:
+- Reads `index.json` and node directories
+- Routes work to agents based on the DAG's dependency structure
+- Uses the verified `output.md` artifacts as implementation specifications
+- Follows the same seed document and vocabulary
+
+This harness focuses on **decomposition and peer review** — producing a high-quality, validated plan. The downstream harness focuses on **execution** — turning that plan into working code.
