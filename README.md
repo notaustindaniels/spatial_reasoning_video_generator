@@ -1,170 +1,196 @@
-# Depthkit Peer-Review Harness
+# Depthkit Multi-Agent Harness
 
-A multi-agent, DAG-structured test harness for autonomously building the **depthkit** 2.5D video rendering engine. Implements the architecture described in the Multi-Agent Seed Harness Spec v2, domain-configured for the depthkit seed v3.
-
-## What This Produces
-
-The harness's primary output is a **`progress_map.json`** — a directed acyclic graph (DAG) of objectives, their statuses, dependencies, and review results. This DAG becomes the spec sheet for a downstream build harness that will execute the actual implementation work.
+A peer-review-structured autonomous coding harness that decomposes the **depthkit** seed document into a DAG of testable objectives, then uses multiple agent roles to explore, review, visually tune, and converge on a production-quality 2.5D parallax video engine.
 
 ## Architecture
 
-The harness orchestrates six agent roles across multiple sessions:
+This harness implements the **Multi-Agent Seed Harness v2** framework:
 
-| Role | Model | Purpose |
-|---|---|---|
-| **Initializer** | Claude | Reads the seed, decomposes it into ~80-120 objectives, produces the initial `progress_map.json` |
-| **Explorer** | Claude | Picks an open objective, produces a discrete artifact (code, design doc, validation result) |
-| **Reviewer** | Claude (fresh context) | Adversarial-but-constructive peer review of explorer output. Decorrelates blind spots. |
-| **Director** | Gemini (multimodal) | Reviews test renders for visual quality. Development-only. Operates under HITL circuit breaker. |
-| **Integrator** | Claude | Periodic coherence check across the DAG. Detects drift, inconsistency, missed connections. |
-| **Synthesizer** | Claude | Assembles verified results into final deliverables at convergence. |
+- **Seed-Driven Coherence** — The seed document (`seed_v3.md`) provides binding vocabulary, constraints, testable claims, and success criteria. Every agent session loads it.
+- **Multi-Agent Peer Review** — Explorer output is reviewed by independent Reviewer sessions with decorrelated blind spots.
+- **DAG-Structured Progress** — Objectives are tracked as nodes in a directed acyclic graph. Each node is a directory containing metadata, output, reviews, and (for visual nodes) test renders and critiques.
+- **Director Agent (Gemini)** — For visual-output objectives, Google Gemini reviews raw MP4 test renders and provides timestamped, directional feedback under a strict Human-in-the-Loop circuit breaker.
+
+## Agent Roles
+
+| Role | Purpose | Model |
+|------|---------|-------|
+| **Initializer** | Decomposes seed into DAG of 50-80 objectives | Claude |
+| **Explorer** | Implements one objective per session | Claude |
+| **Reviewer** | Independent peer review with constructive critique | Claude |
+| **Director** | Visual tuning via multimodal video review (HITL gated) | Gemini |
+| **Integrator** | Periodic coherence check across verified nodes | Claude |
+| **Synthesizer** | Assembles verified nodes into final deliverable | Claude |
 
 ## Prerequisites
 
 ```bash
-# Claude Code CLI (latest)
-npm install -g @anthropic-ai/claude-code
+# Python 3.10+
+python --version
 
-# Python dependencies
+# Install dependencies
 pip install -r requirements.txt
+
+# Install Claude Code CLI (latest)
+npm install -g @anthropic-ai/claude-code
 ```
 
-**Required environment variables:**
+## Setup
+
 ```bash
-export ANTHROPIC_API_KEY='your-key'        # For Claude agents
-export GEMINI_API_KEY='your-key'           # For Director Agent (optional, visual tuning only)
+# 1. Copy environment template
+cp .env.example .env
+
+# 2. Set your Claude Code OAuth token (REQUIRED)
+#    Get it from: https://console.anthropic.com/
+echo 'CLAUDE_CODE_OAUTH_TOKEN=your-token-here' >> .env
+
+# 3. Optionally set Gemini API key for visual tuning
+#    Get it from: https://aistudio.google.com/apikey
+echo 'GEMINI_API_KEY=your-key-here' >> .env
 ```
 
 ## Quick Start
 
 ```bash
-# Initialize: decompose seed into DAG
-python harness.py --project-dir ./depthkit --phase init
+# Start from scratch — initializes DAG, then loops through explore → review → tune
+python main.py --seed ./seed_v3.md
 
-# Run exploration + review cycles
-python harness.py --project-dir ./depthkit --phase explore
+# Limit iterations for testing
+python main.py --seed ./seed_v3.md --max-iterations 3
 
-# Run with iteration limit (for testing)
-python harness.py --project-dir ./depthkit --phase explore --max-iterations 5
+# Run only the initializer (decompose seed into DAG)
+python main.py --seed ./seed_v3.md --role initializer --max-iterations 1
 
-# Run integrator coherence check
-python harness.py --project-dir ./depthkit --phase integrate
+# Target a specific objective
+python main.py --seed ./seed_v3.md --role explorer --node OBJ-005
 
-# Trigger visual tuning for a specific objective (requires GEMINI_API_KEY)
-python harness.py --project-dir ./depthkit --phase direct --objective OBJ-042
+# Force a review pass
+python main.py --seed ./seed_v3.md --role reviewer --node OBJ-005
 
-# Synthesize final output
-python harness.py --project-dir ./depthkit --phase synthesize
+# Continue existing project
+python main.py --seed ./seed_v3.md --project-dir generations/seed_v3
 ```
 
-## Workflow
+## How It Works
 
-```
-  ┌─────────────┐
-  │  seed_v3.md  │
-  └──────┬───────┘
-         │
-  ┌──────▼───────┐
-  │  Initializer  │── produces ──▶ progress_map.json (DAG)
-  └──────┬───────┘
-         │
-  ┌──────▼───────┐      ┌───────────┐
-  │   Explorer    │─────▶│  Reviewer  │──┐
-  └──────┬───────┘      └───────────┘  │
-         │                              │ approved / revision_needed
-         │◀─────────────────────────────┘
-         │
-  ┌──────▼───────┐   (visual objectives only)
-  │   Director    │──▶ HITL Gate ──▶ Code Agent adjusts
-  └──────┬───────┘
-         │
-  ┌──────▼───────┐   (periodic)
-  │  Integrator   │──▶ coherence report, seed updates
-  └──────┬───────┘
-         │
-  ┌──────▼───────┐   (at convergence)
-  │  Synthesizer  │──▶ final deliverables
-  └──────────────┘
-```
+### Phase 1: Initialization
+
+The initializer reads `seed_v3.md` and decomposes it into 50-80 discrete objectives organized as a DAG in `index.json`. Each objective gets its own directory under `nodes/` with a `meta.json` describing what needs to be built, its dependencies, and its priority.
+
+### Phase 2: Explore → Review Loop
+
+The orchestrator picks the highest-priority frontier objective (open, all deps satisfied), runs an Explorer session to implement it, then triggers a Reviewer session for independent peer review. Approved objectives are marked `verified`; rejected objectives go back for revision.
+
+### Phase 3: Visual Tuning (HITL-Gated)
+
+For objectives that produce visual output (scene geometries, camera presets), the approved node enters a Director Agent loop:
+
+1. Explorer renders a test clip → `test_render.mp4`
+2. Gemini reviews the video and produces a Visual Critique
+3. **Human reviews and approves/modifies/rejects the critique** (HITL Circuit Breaker)
+4. Explorer applies approved feedback and re-renders
+5. Loop until human signs off → node marked `"visual_status": "tuned"`
+
+### Phase 4: Convergence
+
+When all objectives are verified (and visual ones tuned), the Synthesizer assembles the verified outputs into the final depthkit engine.
 
 ## Project Structure
 
 ```
 depthkit-harness/
-├── harness.py              # CLI entry point
-├── orchestrator.py         # Session management, role routing
-├── client.py               # Claude SDK client configuration
-├── security.py             # Bash command allowlist
+├── main.py                  # Entry point
+├── orchestrator.py          # Session dispatch loop
+├── client.py                # Claude SDK client factory
+├── security.py              # Bash command allowlist
+├── prompts_loader.py        # Prompt template loading + context assembly
+├── .env.example             # Environment template
+├── requirements.txt         # Python dependencies
 ├── dag/
-│   ├── __init__.py
-│   ├── progress_map.py     # DAG data structures and CRUD
-│   └── session_log.py      # Session logging utilities
+│   ├── index.py             # Progress map (index.json) management
+│   ├── frontier.py          # Frontier computation and objective claiming
+│   └── nodes.py             # Per-node directory operations + context assembly
 ├── roles/
-│   ├── __init__.py
-│   ├── initializer.py      # Seed → initial DAG decomposition
-│   ├── explorer.py         # Objective implementation
-│   ├── reviewer.py         # Peer review
-│   ├── director.py         # Visual tuning (Gemini)
-│   ├── integrator.py       # Coherence checking
-│   └── synthesizer.py      # Final assembly
-├── prompts/
-│   ├── seed.md             # Copy of seed_v3.md
-│   ├── initializer_prompt.md
-│   ├── explorer_prompt.md
-│   ├── reviewer_prompt.md
-│   ├── director_prompt.md
-│   ├── integrator_prompt.md
-│   └── synthesizer_prompt.md
-├── requirements.txt
-└── README.md
+│   ├── session.py           # Claude Code SDK session runner
+│   └── director.py          # Gemini visual tuning + HITL gate
+└── prompts/
+    ├── initializer_prompt.md
+    ├── explorer_prompt.md
+    ├── reviewer_prompt.md
+    ├── integrator_prompt.md
+    ├── synthesizer_prompt.md
+    └── director_prompt.md
 ```
 
-## Generated Project Structure
-
-After running, your project directory will contain:
+### Generated Project Structure (after initialization)
 
 ```
-depthkit/
-├── progress_map.json       # The DAG (primary output)
-├── seed.md                 # Copy of the seed document
-├── sessions/               # One log per session
-│   ├── session_001_init.md
-│   ├── session_002_explore_OBJ-001.md
-│   ├── session_003_review_OBJ-001.md
-│   └── ...
-├── artifacts/              # Work products per objective
+generations/seed_v3/
+├── seed.md                  # Copy of the seed document
+├── index.json               # DAG structure: IDs, edges, statuses
+├── frontier.json            # Materialized work queue
+├── claude-progress.txt      # Session progress notes
+├── nodes/
 │   ├── OBJ-001/
-│   ├── OBJ-002/
+│   │   ├── meta.json        # Objective metadata
+│   │   ├── output.md        # Work product
+│   │   └── reviews/
+│   │       └── REV-001.md
+│   ├── OBJ-002/             # (visual-tuning node)
+│   │   ├── meta.json
+│   │   ├── output.md
+│   │   ├── test_render.mp4
+│   │   ├── critiques/
+│   │   │   └── VC-001.md
+│   │   └── reviews/
 │   └── ...
-├── reviews/                # Review reports
-├── critiques/              # Director visual critiques
-├── renders/                # Test render clips
-├── .claude_settings.json   # Security settings
-└── .git/                   # Full audit trail
+├── dead_ends/
+├── sessions/
+├── synthesis/
+└── .git
 ```
-
-## Key Design Decisions
-
-1. **DAG-first**: Every session reads seed + progress_map, never full history. The DAG is the distributed memory.
-
-2. **Peer review is mandatory**: No objective moves to `verified` without an independent review from a fresh context window.
-
-3. **HITL circuit breaker**: Director Agent (Gemini) feedback always passes through human approval before reaching the Code Agent. This is a hard constraint.
-
-4. **Constructive opposition**: All critique must propose a replacement. "This is wrong" without "here's what's right" is flagged as incomplete.
-
-5. **Dead ends are progress**: Failed explorations are recorded in the DAG to prevent re-exploration.
 
 ## Command Line Options
 
 | Option | Description | Default |
-|---|---|---|
-| `--project-dir` | Working directory | `./depthkit` |
-| `--phase` | Harness phase to run | `explore` |
-| `--max-iterations` | Max session iterations | Unlimited |
+|--------|-------------|---------|
+| `--seed` | Path to seed document | **Required** |
+| `--project-dir` | Project directory | `generations/<seed_name>` |
+| `--max-iterations` | Max agent sessions | Unlimited |
 | `--model` | Claude model | `claude-sonnet-4-5-20250929` |
-| `--objective` | Specific objective ID | Auto-select |
-| `--seed` | Path to seed document | `prompts/seed.md` |
+| `--role` | Force a specific role | Auto-detected |
+| `--node` | Target a specific node | Auto-selected from frontier |
+| `--max-turns` | Max turns per session | 1000 |
+| `--integrator-cadence` | Integrator frequency | Every 15 explorer completions |
+
+## Key Design Decisions
+
+**Why a DAG, not a linear task list?** Dependencies between objectives are load-bearing. A linear list can't express "the tunnel geometry depends on the interpolation utilities" or "the CLI depends on the manifest schema." The DAG encodes these relationships and ensures objectives are worked on in the right order.
+
+**Why per-node directories instead of one big JSON file?** At scale, a monolithic file creates contention (parallel agents writing to the same file), wastes context (every session loads irrelevant nodes), and produces painful merge conflicts. The filesystem IS the distributed memory.
+
+**Why the HITL Circuit Breaker?** Two AI agents giving each other aesthetic feedback will chase each other into increasingly bizarre parameter space. The human grounds the loop. This is a hard constraint, not a guideline.
+
+**Why Gemini for the Director?** Gemini processes raw video as a first-class input — no frame extraction, no montages, no screenshots. It perceives temporal motion quality (easing, momentum, settling) that frame-by-frame analysis misses.
+
+## Timing Expectations
+
+- **Initializer session:** 5-15 minutes (generating 50-80 objective descriptions)
+- **Explorer session:** 5-20 minutes per objective
+- **Reviewer session:** 3-10 minutes per review
+- **Director loop:** 5-15 minutes per tuning round (plus human review time)
+- **Full convergence:** Many hours across dozens of sessions
+
+## Resuming After Interruption
+
+The harness is designed for interruption and resumption. All state is in the filesystem (index.json + node directories) and git. To resume:
+
+```bash
+python main.py --seed ./seed_v3.md --project-dir generations/seed_v3
+```
+
+The orchestrator reads the current DAG state and picks up where it left off.
 
 ## License
 
