@@ -130,6 +130,7 @@ async def run_harness(
     integrator_cadence: int = 15,
     init_safety_cap: int = 50,
     explore_safety_cap: int = 30,
+    concurrency: int = 5,
 ) -> None:
     """
     Run the full harness lifecycle.
@@ -142,6 +143,7 @@ async def run_harness(
         integrator_cadence: Run integrator every N explorer completions.
         init_safety_cap: Max rounds for init deliberation (converges when agents agree).
         explore_safety_cap: Max rounds per explore deliberation (converges when agents agree).
+        concurrency: Max concurrent explore deliberations.
     """
     print("\n" + "=" * 70)
     print("  DEPTHKIT MULTI-AGENT HARNESS (Deliberation Mode)")
@@ -149,6 +151,7 @@ async def run_harness(
     print(f"\n  Project directory: {project_dir}")
     print(f"  Model: {model}")
     print(f"  Max iterations: {max_iterations or 'Unlimited'}")
+    print(f"  Concurrency: {concurrency} parallel deliberations")
     print(f"  Init deliberation: converges when agreed (safety cap: {init_safety_cap})")
     print(f"  Explore deliberation: converges when agreed (safety cap: {explore_safety_cap})")
     print(f"  Integrator cadence: every {integrator_cadence} explorations")
@@ -216,62 +219,24 @@ async def run_harness(
         print("  Resuming existing project.")
         print_progress(project_dir)
 
-    # ── Phase 2: Exploration Deliberation Loop ───────────────
+    # ── Phase 2: Parallel Exploration Deliberation Loop ──────
     explorer_count = 0
     iteration = 0
+    index_lock = asyncio.Lock()
 
     # Load explore prompts once
     prompt_author = load_prompt("spec_author_prompt")
     prompt_challenger = load_prompt("spec_challenger_prompt")
 
-    while True:
-        iteration += 1
+    async def _run_single_explore(node_id: str, explore_num: int) -> None:
+        """Run a single explore deliberation for one objective."""
+        nonlocal explorer_count
 
-        if max_iterations and iteration > max_iterations:
-            print(f"\n  Reached max iterations ({max_iterations}).")
-            break
-
-        # Wait for off-peak pricing if needed
-        await _await_offpeak()
-
-        # Check for convergence
-        summary = get_progress_summary(project_dir)
-        if summary["total"] > 0 and summary["open"] == 0 and summary["in_progress"] == 0 \
-                and summary["review"] == 0 and summary["revision_needed"] == 0:
-            print("\n  ✓ CONVERGENCE: All objectives are verified, blocked, or dead-ended.")
-            break
-
-        # Refresh frontier
-        frontier = refresh_frontier(project_dir)
-
-        if not frontier:
-            print("\n  Frontier is empty.")
-            print("  Possible states: all nodes verified, blocked, or waiting on blocked deps.")
-            break
-
-        # Pick highest priority frontier objective
-        target = frontier[0]
-        node_id = target["id"]
-
-        print(f"\n  Frontier has {len(frontier)} objectives. Picking: {node_id}")
-        print(f"    Priority: {target['priority']} | "
-              f"Blocks: {len(target['blocks'])} downstream nodes")
-
-        # Mark in progress
-        try:
-            update_node_status(project_dir, node_id, STATUS_IN_PROGRESS)
-        except KeyError:
-            pass
-
-        # ── Run Explore Deliberation ─────────────────────────
-        explorer_count += 1
         meta = read_node_meta(project_dir, node_id)
         description = meta.get("description", node_id)
 
-        print_session_header(f"EXPLORE DELIBERATION — {node_id}", iteration)
-        print(f"  Spec Author + Spec Challenger will converse to produce the specification.")
-        print(f"  Objective: {description[:100]}{'...' if len(description) > 100 else ''}")
-        print()
+        print(f"\n  [{node_id}] Starting deliberation...")
+        print(f"    {description[:100]}{'...' if len(description) > 100 else ''}")
 
         shared_context = build_explore_deliberation_context(project_dir, node_id)
 
@@ -301,56 +266,101 @@ async def run_harness(
         )
 
         write_session_log(
-            project_dir, f"exp-{iteration:03d}", "deliberation:explore",
+            project_dir, f"exp-{explore_num:03d}", "deliberation:explore",
             node_id, status,
             f"Explore deliberation for {node_id}: {len(transcript)} rounds."
         )
 
-        if status == "error":
-            print(f"  Deliberation failed for {node_id}. Returning to open.")
+        async with index_lock:
+            if status == "error":
+                print(f"  [{node_id}] Deliberation failed. Returning to open.")
+                try:
+                    update_node_status(project_dir, node_id, STATUS_OPEN)
+                except KeyError:
+                    pass
+                return
+
+            if _check_for_dead_end(conclusion):
+                print(f"  [{node_id}] DEAD END.")
+                mark_dead_end(project_dir, node_id)
+                return
+
             try:
-                update_node_status(project_dir, node_id, STATUS_OPEN)
+                idx = read_index(project_dir)
+                node = idx.get("nodes", {}).get(node_id, {})
+                vs = node.get("visual_status")
+
+                if vs and vs != "tuned":
+                    update_node_status(
+                        project_dir, node_id, STATUS_APPROVED,
+                        review_status="approved",
+                        visual_status="needs_tuning",
+                    )
+                    print(f"  [{node_id}] Approved (awaiting visual tuning)")
+                else:
+                    update_node_status(
+                        project_dir, node_id, STATUS_VERIFIED,
+                        review_status="approved",
+                    )
+                    print(f"  [{node_id}] Verified")
             except KeyError:
                 pass
-            await asyncio.sleep(auto_continue_delay)
-            continue
 
-        # Check for dead end
-        if _check_for_dead_end(conclusion):
-            print(f"  Deliberation concluded {node_id} is a DEAD END.")
-            mark_dead_end(project_dir, node_id)
-            await asyncio.sleep(auto_continue_delay)
-            continue
+            explorer_count += 1
+            _git_push(project_dir)
 
-        # Mark as verified — the challenger's adversarial review is built into
-        # the deliberation, so a converged conclusion is peer-reviewed by design.
-        try:
-            index = read_index(project_dir)
-            node = index.get("nodes", {}).get(node_id, {})
-            vs = node.get("visual_status")
+    while True:
+        # Wait for off-peak pricing if needed
+        await _await_offpeak()
 
-            if vs and vs != "tuned":
-                update_node_status(
-                    project_dir, node_id, STATUS_APPROVED,
-                    review_status="approved",
-                    visual_status="needs_tuning",
-                )
-                print(f"  {node_id}: Approved (awaiting visual tuning)")
-            else:
-                update_node_status(
-                    project_dir, node_id, STATUS_VERIFIED,
-                    review_status="approved",
-                )
-                print(f"  {node_id}: Verified ✓")
-        except KeyError:
-            pass
+        # Check for convergence
+        async with index_lock:
+            summary = get_progress_summary(project_dir)
+        if summary["total"] > 0 and summary["open"] == 0 and summary["in_progress"] == 0 \
+                and summary["review"] == 0 and summary["revision_needed"] == 0:
+            print("\n  CONVERGENCE: All objectives are verified, blocked, or dead-ended.")
+            break
+
+        # Refresh frontier and claim objectives
+        async with index_lock:
+            frontier = refresh_frontier(project_dir)
+
+        if not frontier:
+            print("\n  Frontier is empty.")
+            print("  Possible states: all nodes verified, blocked, or waiting on blocked deps.")
+            break
+
+        # Claim up to N objectives from frontier
+        batch = frontier[:concurrency]
+        async with index_lock:
+            for target in batch:
+                try:
+                    update_node_status(project_dir, target["id"], STATUS_IN_PROGRESS)
+                except KeyError:
+                    pass
+
+        print(f"\n  Frontier has {len(frontier)} objectives. Launching {len(batch)} in parallel:")
+        for target in batch:
+            print(f"    {target['id']} (priority: {target['priority']}, blocks: {len(target['blocks'])})")
+
+        if max_iterations:
+            remaining = max_iterations - iteration
+            if remaining <= 0:
+                print(f"\n  Reached max iterations ({max_iterations}).")
+                break
+            batch = batch[:remaining]
+
+        # Launch batch concurrently
+        tasks = []
+        for target in batch:
+            iteration += 1
+            tasks.append(_run_single_explore(target["id"], iteration))
+
+        await asyncio.gather(*tasks)
 
         print_progress(project_dir)
-        _git_push(project_dir)
 
         # ── Periodic Integrator (adaptive cadence) ────────────
-        # Tighter early (every 5) to catch foundational drift,
-        # relaxes to integrator_cadence once 25% of nodes are verified.
         total_nodes = summary["total"] if summary["total"] > 0 else 1
         verified_pct = summary["verified"] / total_nodes
         effective_cadence = integrator_cadence if verified_pct >= 0.25 else min(5, integrator_cadence)

@@ -38,6 +38,7 @@ DEFAULT_AUTO_CONTINUE_DELAY = 3
 DEFAULT_INTEGRATOR_CADENCE = 15
 DEFAULT_INIT_SAFETY_CAP = 50
 DEFAULT_EXPLORE_SAFETY_CAP = 30
+DEFAULT_CONCURRENCY = 5
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,6 +71,8 @@ Watch conclusions live (in another terminal):
     parser.add_argument("--explore-safety-cap", type=int, default=None,
         help=f"Max rounds per explore deliberation — agents converge when they agree "
              f"(default: {DEFAULT_EXPLORE_SAFETY_CAP})")
+    parser.add_argument("--concurrency", type=int, default=None,
+        help=f"Max concurrent explore deliberations (default: {DEFAULT_CONCURRENCY})")
 
     return parser.parse_args()
 
@@ -115,6 +118,12 @@ def resolve_config(args: argparse.Namespace) -> dict:
         or (int(explore_env) if explore_env else DEFAULT_EXPLORE_SAFETY_CAP)
     )
 
+    concurrency_env = os.environ.get("CONCURRENCY")
+    config["concurrency"] = (
+        args.concurrency
+        or (int(concurrency_env) if concurrency_env else DEFAULT_CONCURRENCY)
+    )
+
     return config
 
 
@@ -137,6 +146,7 @@ def main() -> None:
     print(f"    Init safety cap:    {config['init_safety_cap']} rounds (converges when agents agree)")
     print(f"    Explore safety cap: {config['explore_safety_cap']} rounds (converges when agents agree)")
     print(f"    Continue delay:     {config['auto_continue_delay']}s")
+    print(f"    Concurrency:        {config['concurrency']} parallel deliberations")
     print(f"    Integrator cadence: every {config['integrator_cadence']} explorations")
     print()
     print(f"  Watch conclusions live:")
@@ -153,6 +163,7 @@ def main() -> None:
                 integrator_cadence=config["integrator_cadence"],
                 init_safety_cap=config["init_safety_cap"],
                 explore_safety_cap=config["explore_safety_cap"],
+                concurrency=config["concurrency"],
             )
         )
     except KeyboardInterrupt:
