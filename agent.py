@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Optional
 
 from claude_code_sdk import ClaudeSDKClient
+from claude_code_sdk._errors import MessageParseError
+from claude_code_sdk.types import ResultMessage, SystemMessage
 
 from client import create_client
 from context import (
@@ -41,6 +43,32 @@ from dag import (
 # Session Runner (shared across all roles)
 # ──────────────────────────────────────────────────────────────
 
+async def _safe_receive(client: ClaudeSDKClient):
+    """Wrap client.receive_response() to handle SDK parse errors gracefully.
+
+    The SDK raises MessageParseError for unknown message types (e.g. rate_limit_event).
+    This wrapper catches those per-message and yields a SystemMessage placeholder,
+    allowing the session to continue processing remaining messages.
+    """
+    from claude_code_sdk._internal.message_parser import parse_message
+
+    if not client._query:
+        return
+
+    async for data in client._query.receive_messages():
+        try:
+            msg = parse_message(data)
+        except MessageParseError as e:
+            msg_type = data.get("type", "unknown") if isinstance(data, dict) else "unknown"
+            print(f"  [SDK warning: unhandled message type '{msg_type}', skipping]", flush=True)
+            # Synthesize a SystemMessage so callers can see what happened
+            msg = SystemMessage(subtype=f"sdk_unknown_{msg_type}", data=data if isinstance(data, dict) else {})
+
+        yield msg
+        if isinstance(msg, ResultMessage):
+            return
+
+
 async def run_session(
     client: ClaudeSDKClient,
     message: str,
@@ -63,7 +91,7 @@ async def run_session(
         await client.query(message)
 
         response_text = ""
-        async for msg in client.receive_response():
+        async for msg in _safe_receive(client):
             msg_type = type(msg).__name__
 
             if msg_type == "AssistantMessage" and hasattr(msg, "content"):
@@ -95,6 +123,18 @@ async def run_session(
                             print(f"    [Error] {error_str}", flush=True)
                         else:
                             print("    [Done]", flush=True)
+
+            elif msg_type == "ResultMessage":
+                is_error = getattr(msg, "is_error", False)
+                num_turns = getattr(msg, "num_turns", 0)
+                duration = getattr(msg, "duration_ms", 0)
+                cost = getattr(msg, "total_cost_usd", None)
+                cost_str = f" | Cost: ${cost:.4f}" if cost else ""
+                print(f"\n  [Result] turns={num_turns} duration={duration}ms error={is_error}{cost_str}", flush=True)
+
+            elif msg_type == "SystemMessage":
+                subtype = getattr(msg, "subtype", "unknown")
+                print(f"  [System: {subtype}]", flush=True)
 
         print("\n" + "-" * 70 + "\n")
         return "continue", response_text

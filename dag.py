@@ -132,6 +132,26 @@ def mark_dead_end(project_dir: Path, node_id: str) -> None:
 
 
 # ──────────────────────────────────────────────────────────────
+# Integrator Coverage Tracking
+# ──────────────────────────────────────────────────────────────
+
+def read_integrator_coverage(project_dir: Path) -> dict:
+    """Read integrator_coverage.json — maps node_id to last-sampled ISO timestamp."""
+    path = project_dir / "integrator_coverage.json"
+    if not path.exists():
+        return {}
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def write_integrator_coverage(project_dir: Path, coverage: dict) -> None:
+    """Write integrator_coverage.json."""
+    path = project_dir / "integrator_coverage.json"
+    with open(path, "w") as f:
+        json.dump(coverage, f, indent=2)
+
+
+# ──────────────────────────────────────────────────────────────
 # Frontier Operations
 # ──────────────────────────────────────────────────────────────
 

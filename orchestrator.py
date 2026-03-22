@@ -13,8 +13,9 @@ and enforces the explore → review → verify pipeline.
 """
 
 import asyncio
-import random
+import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +25,9 @@ from dag import (
     update_node_status,
     get_progress_summary,
     print_progress,
+    mark_dead_end,
+    read_integrator_coverage,
+    write_integrator_coverage,
     STATUS_OPEN,
     STATUS_IN_PROGRESS,
     STATUS_REVIEW,
@@ -37,6 +41,7 @@ from agent import (
     run_explorer_session,
     run_reviewer_session,
     run_integrator_session,
+    run_synthesizer_session,
     write_session_log,
 )
 from context import PROMPTS_DIR
@@ -201,6 +206,13 @@ async def run_harness(
             await asyncio.sleep(auto_continue_delay)
             continue
 
+        # Check if explorer flagged this as a dead end
+        if _check_for_dead_end(response):
+            print(f"  Explorer flagged {node_id} as DEAD END.")
+            mark_dead_end(project_dir, node_id)
+            await asyncio.sleep(auto_continue_delay)
+            continue
+
         print_progress(project_dir)
 
         # ── Run Reviewer Session (if enabled) ────────────────
@@ -227,6 +239,34 @@ async def run_harness(
 
         # ── Auto-continue ────────────────────────────────────
         await asyncio.sleep(auto_continue_delay)
+
+    # ── Phase 4: Synthesis ────────────────────────────────────
+    summary = get_progress_summary(project_dir)
+    if summary["verified"] > 0:
+        print("\n" + "=" * 70)
+        print("  PHASE 4: SYNTHESIS")
+        print("=" * 70)
+
+        index = read_index(project_dir)
+        verified_ids = [
+            nid for nid, n in index.get("nodes", {}).items()
+            if n["status"] == STATUS_VERIFIED
+        ]
+
+        if verified_ids:
+            print(f"\n  Running synthesizer across {len(verified_ids)} verified nodes...")
+            syn_status, syn_response = await run_synthesizer_session(
+                project_dir, verified_ids, model
+            )
+            write_session_log(
+                project_dir, "syn-final", "synthesizer",
+                None, syn_status,
+                f"Final synthesis across {len(verified_ids)} verified nodes."
+            )
+            if syn_status == "error":
+                print("  Synthesizer session failed. Outputs may need manual assembly.")
+            else:
+                print("  Synthesis complete.")
 
     # ── Final Summary ────────────────────────────────────────
     print("\n" + "=" * 70)
@@ -284,6 +324,34 @@ def _setup_project(project_dir: Path) -> None:
         print("  Initialized git repository.")
 
 
+def _strip_markdown(text: str) -> str:
+    """Remove markdown formatting so verdict parsing isn't tripped by **, `, #, etc."""
+    text = re.sub(r'\*+', '', text)
+    text = re.sub(r'`+', '', text)
+    text = re.sub(r'#+\s*', '', text)
+    return text
+
+
+def _check_for_dead_end(response: str) -> bool:
+    """Check if the explorer's response indicates the objective is a dead end."""
+    cleaned = _strip_markdown(response)
+
+    # Explicit dead-end flag: "DEAD_END: true" / "infeasible: yes" etc.
+    if re.search(
+        r'(?:dead[_\s-]?end|infeasible|unachievable)\s*[:—\-]\s*(?:true|yes)',
+        cleaned,
+        re.IGNORECASE,
+    ):
+        return True
+
+    # Verdict-style: "VERDICT: dead_end"
+    return bool(re.search(
+        r'verdict\s*[:—\-]\s*dead[_\s-]?end',
+        cleaned,
+        re.IGNORECASE,
+    ))
+
+
 def _process_review_verdict(project_dir: Path, node_id: str, review_response: str) -> None:
     """
     Parse the reviewer's verdict from the response and update node status.
@@ -292,35 +360,44 @@ def _process_review_verdict(project_dir: Path, node_id: str, review_response: st
       VERDICT: approved
       VERDICT: revision_needed
       VERDICT: blocked
+      VERDICT: dead_end
 
-    If no clear verdict is found, default to approved (assume the reviewer
-    didn't find blocking issues).
+    Handles markdown formatting, variable whitespace, and case variations.
+    If no clear verdict is found, defaults to revision_needed (conservative).
     """
-    response_lower = review_response.lower()
+    cleaned = _strip_markdown(review_response)
 
-    if "verdict: revision_needed" in response_lower or "verdict:revision_needed" in response_lower:
+    match = re.search(
+        r'verdict\s*[:—\-]\s*(approved|revision[_\s-]?needed|blocked|dead[_\s-]?end)',
+        cleaned,
+        re.IGNORECASE,
+    )
+
+    raw_verdict = match.group(1).strip().lower().replace(' ', '_').replace('-', '_') if match else None
+
+    if raw_verdict == "revision_needed":
         print(f"  Review verdict: REVISION NEEDED for {node_id}")
         try:
             update_node_status(project_dir, node_id, STATUS_REVISION_NEEDED)
         except KeyError:
             pass
-    elif "verdict: blocked" in response_lower or "verdict:blocked" in response_lower:
+    elif raw_verdict == "blocked":
         print(f"  Review verdict: BLOCKED for {node_id}")
         try:
             update_node_status(project_dir, node_id, STATUS_BLOCKED)
         except KeyError:
             pass
-    else:
-        # Default: approved → verified (peer review passed)
+    elif raw_verdict == "dead_end":
+        print(f"  Review verdict: DEAD END for {node_id}")
+        mark_dead_end(project_dir, node_id)
+    elif raw_verdict == "approved":
         print(f"  Review verdict: APPROVED for {node_id}")
         try:
-            # Check if this node needs visual tuning
             index = read_index(project_dir)
             node = index.get("nodes", {}).get(node_id, {})
             vs = node.get("visual_status")
 
             if vs and vs != "tuned":
-                # Approved but needs visual tuning before verification
                 update_node_status(
                     project_dir, node_id, STATUS_APPROVED,
                     review_status="approved",
@@ -334,10 +411,16 @@ def _process_review_verdict(project_dir: Path, node_id: str, review_response: st
                 )
         except KeyError:
             pass
+    else:
+        print(f"  Review verdict: NO CLEAR VERDICT for {node_id} — defaulting to REVISION NEEDED")
+        try:
+            update_node_status(project_dir, node_id, STATUS_REVISION_NEEDED)
+        except KeyError:
+            pass
 
 
 async def _run_integrator(project_dir: Path, model: str) -> None:
-    """Run an integrator session with a sample of verified nodes."""
+    """Run an integrator session with a sample of verified nodes, tracking coverage."""
     index = read_index(project_dir)
     verified = [
         nid for nid, n in index.get("nodes", {}).items()
@@ -348,22 +431,30 @@ async def _run_integrator(project_dir: Path, model: str) -> None:
         print("  Skipping integrator — fewer than 3 verified nodes.")
         return
 
-    # Sample up to 20 verified nodes, prioritizing high fan-out
     sample_size = min(20, len(verified))
-    # Sort by number of blocks (fan-out) descending
-    nodes = index["nodes"]
-    scored = [(nid, len(nodes.get(nid, {}).get("blocks", []))) for nid in verified]
-    scored.sort(key=lambda x: -x[1])
+    coverage = read_integrator_coverage(project_dir)
+    now = datetime.now(timezone.utc).isoformat()
 
-    # Take top half by fan-out, fill rest randomly
-    high_fanout = [nid for nid, _ in scored[:sample_size // 2]]
-    remaining = [nid for nid in verified if nid not in high_fanout]
-    random_sample = random.sample(remaining, min(sample_size - len(high_fanout), len(remaining)))
-    sample = high_fanout + random_sample
+    # Sort verified nodes: never-sampled first, then by oldest sample time
+    def sort_key(nid):
+        last = coverage.get(nid)
+        if last is None:
+            return ""  # sorts first — never sampled
+        return last
 
+    sorted_by_staleness = sorted(verified, key=sort_key)
+    sample = sorted_by_staleness[:sample_size]
+
+    never_sampled = sum(1 for nid in verified if nid not in coverage)
     print(f"  Running integrator with {len(sample)} sampled nodes...")
+    print(f"    ({never_sampled} never sampled, {len(verified) - never_sampled} previously sampled)")
 
     status, response = await run_integrator_session(project_dir, sample, model)
+
+    # Update coverage tracking
+    for nid in sample:
+        coverage[nid] = now
+    write_integrator_coverage(project_dir, coverage)
 
     write_session_log(
         project_dir, f"int-{len(verified):03d}", "integrator",

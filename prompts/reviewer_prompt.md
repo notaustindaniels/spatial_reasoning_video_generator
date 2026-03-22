@@ -97,11 +97,13 @@ Write your review to `nodes/NODE_ID/reviews/REV-NNN.md` with this structure:
 [Why you chose this verdict]
 ```
 
-### VERDICT RULES
+### VERDICT RULES — STRICT
 
-- **`approved`** — The artifact satisfies its objective, respects constraints, and has no critical or major issues. Minor issues can be noted for future improvement.
-- **`revision_needed`** — The artifact has critical or major issues that must be fixed before it can be verified. Your review MUST include specific revision guidance for each issue.
+- **`approved`** — The artifact satisfies its objective, respects ALL relevant constraints, uses correct vocabulary, and has ZERO critical issues, ZERO major issues, and FEWER than 3 minor issues. This is a clean bill of health. If you have to qualify your approval ("approved, but..."), it is NOT approved — it is revision_needed.
+- **`revision_needed`** — **This is the expected outcome for most first-pass reviews.** Use this verdict if ANY of the following are true: (a) any critical issue exists, (b) any major issue exists, (c) 3 or more minor issues exist, (d) you wrote "approved but [something] should be fixed" — that means it needs fixing, so send it back. Your review MUST include specific revision guidance for each issue.
 - **`blocked`** — A dependency has become invalid or the objective itself is mis-specified. Explain what's wrong at the structural level.
+
+**ANTI-PUSHOVER CALIBRATION:** Approving flawed work is worse than sending it back. A revision costs one extra session. Approving a flawed artifact means every downstream objective inherits the flaw, and fixing it later costs 5-10x more. When in doubt, reject. If you found 5 "minor" issues and are about to approve, stop — 5 issues on one artifact is a pattern, not a collection of one-offs.
 
 ### CRITICAL RULES
 
