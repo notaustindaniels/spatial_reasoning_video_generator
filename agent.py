@@ -126,7 +126,7 @@ async def run_deliberation(
     shared_context: str,
     prompt_a: str,
     prompt_b: str,
-    safety_cap: int = 20,
+    safety_cap: int = 50,
     max_turns_per_round: int = 200,
     max_turns_commit: int = 500,
     session_label: str = "deliberation",
@@ -134,13 +134,13 @@ async def run_deliberation(
     """
     Run a convergence-driven deliberation between two agents.
 
-    Agent A and Agent B alternate turns until they converge. Convergence
-    is signaled when either agent writes CONCLUSION: in their response.
-    The safety_cap prevents infinite loops but is NOT a target — most
-    deliberations should converge well before hitting it.
+    Agent A (proposer) and Agent B (challenger) alternate turns. Only the
+    challenger can signal convergence by writing CONCLUSION:. The proposer
+    is explicitly forbidden from doing so.
 
-    When convergence is detected, if the concluding agent hasn't already
-    written files to disk, one more commit round is triggered.
+    The safety_cap prevents infinite loops but is NOT a target — most
+    deliberations should converge well before hitting it. If the cap is
+    hit, a forced commit round is given to the challenger.
 
     Returns:
         (status, conclusion, transcript) where transcript is a list of
@@ -151,7 +151,8 @@ async def run_deliberation(
     status = "continue"
     converged = False
 
-    print(f"\n  Starting deliberation: {role_a} vs {role_b} (converges when both agree, safety cap: {safety_cap})")
+    print(f"\n  Starting deliberation: {role_a} (proposer) vs {role_b} (challenger)")
+    print(f"    Only {role_b} can signal convergence. Safety cap: {safety_cap}")
 
     round_num = 0
 
@@ -161,6 +162,7 @@ async def run_deliberation(
 
         current_role = role_a if is_odd else role_b
         current_prompt = prompt_a if is_odd else prompt_b
+        is_proposer = is_odd  # role_a (odd rounds) = proposer, role_b (even) = challenger
         max_turns = max_turns_per_round
 
         # ── Build turn context ───────────────────────────────
@@ -169,13 +171,14 @@ async def run_deliberation(
             role_prompt=current_prompt,
             transcript=transcript,
             round_num=round_num,
+            is_proposer=is_proposer,
             is_commit=False,
         )
 
         # ── Run the turn ─────────────────────────────────────
         label = f"{session_label}:R{round_num}:{current_role}"
         print(f"\n  {'─' * 50}")
-        print(f"  Round {round_num}: {current_role}")
+        print(f"  Round {round_num}: {current_role} ({'proposer' if is_proposer else 'CHALLENGER — can converge'})")
         print(f"  {'─' * 50}")
 
         client = create_client(project_dir, model, role=current_role, max_turns=max_turns)
@@ -190,22 +193,29 @@ async def run_deliberation(
         transcript.append({"round": round_num, "role": current_role, "content": response})
 
         # ── Check for convergence ────────────────────────────
+        # Only the challenger (even rounds) should write CONCLUSION:
+        # If the proposer accidentally does it, log a warning but still break
+        # (the prompt strongly forbids this, but we handle it gracefully)
         if _has_conclusion_marker(response):
-            print(f"\n  Convergence signaled at round {round_num} by {current_role}.")
+            if is_proposer:
+                print(f"\n  ⚠  WARNING: Proposer ({current_role}) wrote CONCLUSION: at round {round_num}.")
+                print(f"     This should not happen — the proposer cannot declare convergence.")
+                print(f"     Accepting it to avoid losing work, but the challenger did not verify.")
+            else:
+                print(f"\n  ✓ Convergence signaled at round {round_num} by {current_role} (challenger).")
             conclusion = _extract_conclusion(response)
             converged = True
             break
 
-    # ── If safety cap hit without convergence, force a commit round ──
+    # ── If safety cap hit without convergence, force commit to CHALLENGER ──
     if not converged and status != "error":
         round_num += 1
-        # Give the commit round to whichever agent is next
-        is_odd = (round_num % 2 == 1)
-        current_role = role_a if is_odd else role_b
-        current_prompt = prompt_a if is_odd else prompt_b
+        # Always give forced commit to the challenger (role_b), regardless of whose turn it would be
+        current_role = role_b
+        current_prompt = prompt_b
 
         print(f"\n  {'─' * 50}")
-        print(f"  Round {round_num}: {current_role} (SAFETY CAP — forced commit)")
+        print(f"  Round {round_num}: {current_role} (SAFETY CAP — forced commit to challenger)")
         print(f"  {'─' * 50}")
 
         turn_context = _build_turn_context(
@@ -213,6 +223,7 @@ async def run_deliberation(
             role_prompt=current_prompt,
             transcript=transcript,
             round_num=round_num,
+            is_proposer=False,  # Challenger
             is_commit=True,
         )
 
@@ -241,6 +252,7 @@ def _build_turn_context(
     role_prompt: str,
     transcript: list[dict],
     round_num: int,
+    is_proposer: bool,
     is_commit: bool = False,
 ) -> str:
     """Assemble the full prompt for one deliberation turn."""
@@ -255,6 +267,7 @@ def _build_turn_context(
 
     commit_instructions = ""
     if is_commit:
+        # Safety cap forced commit — always given to the challenger
         commit_instructions = """
 
 ---
@@ -274,15 +287,28 @@ The conclusion must stand on its own without requiring the transcript.
 
     convergence_instructions = ""
     if not is_commit:
-        convergence_instructions = """
+        if is_proposer:
+            convergence_instructions = """
 
-## CONVERGENCE INSTRUCTIONS
+## CONVERGENCE RULES — PROPOSER
 
-This deliberation runs until both sides agree — there is no predetermined round limit.
+This deliberation runs until the **challenger** (the other agent) is satisfied — there is no predetermined round limit.
 
-- **If you have no remaining critical or major objections** to the current state of the discussion, signal convergence by writing `CONCLUSION:` on its own line, followed by the agreed result. Then **write the conclusion to disk** (output.md for specs, index.json + node directories for initialization) and commit to git.
-- **If you still have substantive objections**, state them clearly. The deliberation continues.
-- Do NOT signal convergence prematurely just because several rounds have passed. Converge when the discussion has genuinely resolved, not when you're tired of talking.
+- **You CANNOT signal convergence.** Do NOT write `CONCLUSION:` under any circumstances. If you do, the deliberation will terminate before the challenger can verify your work.
+- **You CANNOT write final files to disk** (output.md, index.json, node directories). The challenger is responsible for committing the agreed result.
+- **Your job this round:** Propose, revise, or defend your work. If you believe you have addressed all the challenger's objections, present your revised proposal clearly and explicitly ask the challenger to verify and approve.
+"""
+        else:
+            convergence_instructions = """
+
+## CONVERGENCE RULES — CHALLENGER (YOU DECIDE)
+
+This deliberation runs until **you** are satisfied — there is no predetermined round limit. You are the sole authority on convergence. The proposer cannot write `CONCLUSION:` or commit files.
+
+- **If you have verified that all your critical and major objections have been satisfactorily addressed**, signal convergence by writing `CONCLUSION:` on its own line, followed by the agreed result. Then **write the conclusion to disk** (output.md for specs, index.json + node directories for initialization) and commit to git.
+- **If issues remain**, state them clearly. The deliberation continues.
+- **Actually verify fixes** — do not take the proposer's word that something is addressed. Check that the revised proposal structurally reflects the fix.
+- Do NOT converge out of politeness or fatigue. You are the quality gate.
 """
 
     return f"""{shared_context}

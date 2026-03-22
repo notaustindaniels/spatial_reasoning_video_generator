@@ -128,8 +128,8 @@ async def run_harness(
     max_iterations: Optional[int] = None,
     auto_continue_delay: int = 3,
     integrator_cadence: int = 15,
-    init_safety_cap: int = 20,
-    explore_safety_cap: int = 12,
+    init_safety_cap: int = 50,
+    explore_safety_cap: int = 30,
 ) -> None:
     """
     Run the full harness lifecycle.
@@ -184,7 +184,7 @@ async def run_harness(
             prompt_b=prompt_b,
             safety_cap=init_safety_cap,
             max_turns_per_round=300,
-            max_turns_commit=1000,
+            max_turns_commit=2000,
             session_label="init-delib",
         )
 
@@ -285,7 +285,7 @@ async def run_harness(
             prompt_b=prompt_challenger,
             safety_cap=explore_safety_cap,
             max_turns_per_round=200,
-            max_turns_commit=500,
+            max_turns_commit=1000,
             session_label=f"explore-{node_id}",
         )
 
