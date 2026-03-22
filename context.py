@@ -2,16 +2,12 @@
 Context Assembly
 ================
 
-Assembles the context payload for each agent role from the filesystem.
-Follows the context assembly rules from the harness spec (Section 6.3):
-
-- Always: seed.md + index.json
-- Explorer: target node meta + dependency outputs
-- Reviewer: target node meta + output + dependency outputs
-- Integrator: rotating sample of verified node outputs
-- Synthesizer: cluster of node outputs for current pass
+Assembles the shared context for deliberations and monologue sessions.
+The shared context is what both agents see — the seed, index, and relevant
+node data. Role-specific prompts are layered on per-turn by agent.py.
 """
 
+import json
 from pathlib import Path
 
 from dag import (
@@ -31,7 +27,6 @@ def load_seed(project_dir: Path) -> str:
     seed_path = project_dir / "seed.md"
     if seed_path.exists():
         return seed_path.read_text()
-    # Fall back to prompts directory
     fallback = PROMPTS_DIR / "seed.md"
     if fallback.exists():
         return fallback.read_text()
@@ -39,8 +34,7 @@ def load_seed(project_dir: Path) -> str:
 
 
 def load_index_summary(project_dir: Path) -> str:
-    """Load index.json as a formatted string for context."""
-    import json
+    """Load index.json as a formatted string."""
     index = read_index(project_dir)
     if not index:
         return "No index.json found — this is a fresh project."
@@ -56,13 +50,15 @@ def load_prompt(name: str) -> str:
 
 
 # ──────────────────────────────────────────────────────────────
-# Role-Specific Context Builders
+# Deliberation Context Builders (shared context — both agents see this)
 # ──────────────────────────────────────────────────────────────
 
-def build_initializer_context(project_dir: Path) -> str:
-    """Build the full prompt for the initializer session."""
+def build_init_deliberation_context(project_dir: Path) -> str:
+    """
+    Build the shared context for the initialization deliberation.
+    Both architects see: seed document + fresh project state.
+    """
     seed = load_seed(project_dir)
-    prompt = load_prompt("initializer_prompt")
 
     return f"""# SEED DOCUMENT
 
@@ -70,25 +66,33 @@ def build_initializer_context(project_dir: Path) -> str:
 
 ---
 
-# YOUR INSTRUCTIONS
+# PROJECT STATE
 
-{prompt}
+This is a fresh project. No objectives exist yet. Your deliberation will
+determine the decomposition — the number, scope, boundaries, dependencies,
+and priorities of all objectives.
+
+The output of this deliberation is:
+1. `index.json` — the graph structure (IDs, edges, statuses)
+2. `nodes/OBJ-NNN/meta.json` — per-objective metadata
+3. `frontier.json` — initial ready objectives
+4. `harness-progress.txt` — summary notes
+
+The number of objectives is NOT predetermined. It emerges from your conversation.
 """
 
 
-def build_explorer_context(project_dir: Path, node_id: str) -> str:
+def build_explore_deliberation_context(project_dir: Path, node_id: str) -> str:
     """
-    Build context for an explorer session working on a specific node.
-    Includes: seed, index, target meta, dependency outputs.
+    Build the shared context for an exploration deliberation.
+    Both agents see: seed, index, target node, dependency outputs.
     """
     seed = load_seed(project_dir)
     index_str = load_index_summary(project_dir)
-    prompt = load_prompt("explorer_prompt")
 
     # Target node metadata
     meta = read_node_meta(project_dir, node_id)
-    import json
-    meta_str = json.dumps(meta, indent=2) if meta else "No meta.json found for this node."
+    meta_str = json.dumps(meta, indent=2) if meta else "No meta.json found."
 
     # Dependency outputs
     dep_outputs = []
@@ -97,9 +101,9 @@ def build_explorer_context(project_dir: Path, node_id: str) -> str:
         if output:
             dep_outputs.append(f"### Dependency: {dep_id}\n\n{output}")
 
-    deps_str = "\n\n---\n\n".join(dep_outputs) if dep_outputs else "No dependencies — this is a foundational objective."
+    deps_str = "\n\n---\n\n".join(dep_outputs) if dep_outputs else "No dependencies — foundational objective."
 
-    # Any prior reviews (if revision_needed)
+    # Prior reviews (if revision_needed)
     reviews = read_node_reviews(project_dir, node_id)
     reviews_str = ""
     if reviews:
@@ -109,7 +113,7 @@ def build_explorer_context(project_dir: Path, node_id: str) -> str:
     existing_output = read_node_output(project_dir, node_id)
     existing_str = ""
     if existing_output:
-        existing_str = f"\n\n## YOUR PRIOR OUTPUT (revise as needed)\n\n{existing_output}"
+        existing_str = f"\n\n## PRIOR SPEC OUTPUT (revise as needed)\n\n{existing_output}"
 
     return f"""# SEED DOCUMENT
 
@@ -125,14 +129,14 @@ def build_explorer_context(project_dir: Path, node_id: str) -> str:
 
 ---
 
-# YOUR TARGET OBJECTIVE: {node_id}
+# TARGET OBJECTIVE: {node_id}
 
 ## Metadata
 ```json
 {meta_str}
 ```
 
-## Dependency Outputs
+## Dependency Specs
 
 {deps_str}
 {reviews_str}
@@ -140,70 +144,23 @@ def build_explorer_context(project_dir: Path, node_id: str) -> str:
 
 ---
 
-# YOUR INSTRUCTIONS
+# DELIBERATION OBJECTIVE
 
-{prompt}
+Your conversation should produce a complete specification for **{node_id}**.
+The spec must define interface contracts, design decisions, acceptance criteria,
+edge cases, test strategy, and integration points — NOT implementation code.
+
+The final round must write the agreed specification to `nodes/{node_id}/output.md`
+and update `nodes/{node_id}/meta.json`.
 """
 
 
-def build_reviewer_context(project_dir: Path, node_id: str) -> str:
-    """
-    Build context for a reviewer session evaluating a node.
-    Includes: seed, target meta + output, dependency outputs.
-    """
-    seed = load_seed(project_dir)
-    prompt = load_prompt("reviewer_prompt")
-
-    meta = read_node_meta(project_dir, node_id)
-    import json
-    meta_str = json.dumps(meta, indent=2) if meta else "{}"
-
-    output = read_node_output(project_dir, node_id)
-    output_str = output if output else "No output.md found — the explorer may not have committed."
-
-    # Dependency outputs for context
-    dep_outputs = []
-    for dep_id in meta.get("depends_on", []):
-        dep_out = read_node_output(project_dir, dep_id)
-        if dep_out:
-            dep_outputs.append(f"### Dependency: {dep_id}\n\n{dep_out}")
-
-    deps_str = "\n\n---\n\n".join(dep_outputs) if dep_outputs else "No dependencies."
-
-    return f"""# SEED DOCUMENT
-
-{seed}
-
----
-
-# NODE UNDER REVIEW: {node_id}
-
-## Metadata
-```json
-{meta_str}
-```
-
-## Output (the artifact to review)
-
-{output_str}
-
-## Dependency Outputs (for context)
-
-{deps_str}
-
----
-
-# YOUR INSTRUCTIONS
-
-{prompt}
-"""
-
+# ──────────────────────────────────────────────────────────────
+# Monologue Context Builders (integrator, synthesizer — unchanged)
+# ──────────────────────────────────────────────────────────────
 
 def build_integrator_context(project_dir: Path, sample_node_ids: list[str]) -> str:
-    """
-    Build context for an integrator session.
-    Includes: seed, index, sample of verified node outputs.
-    """
+    """Build context for an integrator session."""
     seed = load_seed(project_dir)
     index_str = load_index_summary(project_dir)
     prompt = load_prompt("integrator_prompt")
@@ -213,14 +170,11 @@ def build_integrator_context(project_dir: Path, sample_node_ids: list[str]) -> s
     for nid in sample_node_ids:
         meta = read_node_meta(project_dir, nid)
         output = read_node_output(project_dir, nid)
-        import json
         sample_outputs.append(
             f"### Node: {nid}\n**Description:** {meta.get('description', 'N/A')}\n\n{output}"
         )
 
     samples_str = "\n\n---\n\n".join(sample_outputs) if sample_outputs else "No nodes to sample."
-
-    import json
     summary_str = json.dumps(summary, indent=2)
 
     return f"""# SEED DOCUMENT
@@ -256,10 +210,7 @@ def build_integrator_context(project_dir: Path, sample_node_ids: list[str]) -> s
 
 
 def build_synthesizer_context(project_dir: Path, cluster_node_ids: list[str]) -> str:
-    """
-    Build context for a synthesizer session.
-    Includes: seed, cluster of verified node outputs.
-    """
+    """Build context for a synthesizer session."""
     seed = load_seed(project_dir)
     prompt = load_prompt("synthesizer_prompt")
 
@@ -267,7 +218,6 @@ def build_synthesizer_context(project_dir: Path, cluster_node_ids: list[str]) ->
     for nid in cluster_node_ids:
         meta = read_node_meta(project_dir, nid)
         output = read_node_output(project_dir, nid)
-        import json
         cluster_outputs.append(
             f"### Node: {nid}\n**Description:** {meta.get('description', 'N/A')}\n\n{output}"
         )
@@ -280,9 +230,83 @@ def build_synthesizer_context(project_dir: Path, cluster_node_ids: list[str]) ->
 
 ---
 
-# VERIFIED NODE OUTPUTS TO SYNTHESIZE
+# VERIFIED NODE SPECS TO SYNTHESIZE
 
 {cluster_str}
+
+---
+
+# YOUR INSTRUCTIONS
+
+{prompt}
+"""
+
+
+def build_manifest_context(project_dir: Path) -> str:
+    """
+    Build context for the manifest author session.
+    Includes: seed, full index, ALL node descriptions (meta.json only, not output.md).
+    This is lightweight — descriptions and edges, not full spec content.
+    """
+    seed = load_seed(project_dir)
+    index = read_index(project_dir)
+    index_str = json.dumps(index, indent=2)
+    prompt = load_prompt("manifest_prompt")
+    summary = get_progress_summary(project_dir)
+    summary_str = json.dumps(summary, indent=2)
+
+    # Collect all meta.json descriptions — this is the map, not the territory
+    node_descriptions = []
+    for nid in sorted(index.get("nodes", {}).keys()):
+        meta = read_node_meta(project_dir, nid)
+        if meta:
+            node_descriptions.append(
+                f"- **{nid}**: {meta.get('description', 'N/A')} "
+                f"[depends_on: {', '.join(meta.get('depends_on', [])) or 'none'}]"
+            )
+
+    nodes_str = "\n".join(node_descriptions) if node_descriptions else "No nodes found."
+
+    # Collect dead ends
+    dead_end_descriptions = []
+    for de_id in index.get("dead_ends", []):
+        meta = read_node_meta(project_dir, de_id)
+        if meta:
+            dead_end_descriptions.append(
+                f"- **{de_id}**: {meta.get('description', 'N/A')} — {meta.get('notes', 'no notes')}"
+            )
+
+    dead_ends_str = "\n".join(dead_end_descriptions) if dead_end_descriptions else "No dead ends."
+
+    return f"""# SEED DOCUMENT
+
+{seed}
+
+---
+
+# FULL PROGRESS MAP INDEX
+
+```json
+{index_str}
+```
+
+# PROGRESS SUMMARY
+
+```json
+{summary_str}
+```
+
+---
+
+# ALL OBJECTIVES (description + dependencies)
+
+{nodes_str}
+
+---
+
+# DEAD ENDS
+
+{dead_ends_str}
 
 ---
 

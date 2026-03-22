@@ -2,13 +2,14 @@
 Agent Session Logic
 ===================
 
-Core agent interaction functions for running sessions across all roles.
-Each session: send prompt → stream response → collect output → return status.
+Core functions for running agent sessions:
+- run_session: single-agent monologue (integrator, synthesizer)
+- run_deliberation: two-agent conversation (init, explore)
+- append_to_feed: real-time conclusion visibility
 """
 
 import asyncio
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -18,38 +19,20 @@ from claude_code_sdk._errors import MessageParseError
 from claude_code_sdk.types import ResultMessage, SystemMessage
 
 from client import create_client
-from context import (
-    build_initializer_context,
-    build_explorer_context,
-    build_reviewer_context,
-    build_integrator_context,
-    build_synthesizer_context,
-)
 from dag import (
-    read_index,
-    read_node_meta,
     update_node_status,
-    refresh_frontier,
     print_progress,
-    STATUS_OPEN,
     STATUS_IN_PROGRESS,
     STATUS_REVIEW,
-    STATUS_REVISION_NEEDED,
-    STATUS_VERIFIED,
 )
 
 
 # ──────────────────────────────────────────────────────────────
-# Session Runner (shared across all roles)
+# Safe SDK Message Receiver
 # ──────────────────────────────────────────────────────────────
 
 async def _safe_receive(client: ClaudeSDKClient):
-    """Wrap client.receive_response() to handle SDK parse errors gracefully.
-
-    The SDK raises MessageParseError for unknown message types (e.g. rate_limit_event).
-    This wrapper catches those per-message and yields a SystemMessage placeholder,
-    allowing the session to continue processing remaining messages.
-    """
+    """Wrap client.receive_response() to handle SDK parse errors gracefully."""
     from claude_code_sdk._internal.message_parser import parse_message
 
     if not client._query:
@@ -58,10 +41,9 @@ async def _safe_receive(client: ClaudeSDKClient):
     async for data in client._query.receive_messages():
         try:
             msg = parse_message(data)
-        except MessageParseError as e:
+        except MessageParseError:
             msg_type = data.get("type", "unknown") if isinstance(data, dict) else "unknown"
             print(f"  [SDK warning: unhandled message type '{msg_type}', skipping]", flush=True)
-            # Synthesize a SystemMessage so callers can see what happened
             msg = SystemMessage(subtype=f"sdk_unknown_{msg_type}", data=data if isinstance(data, dict) else {})
 
         yield msg
@@ -69,23 +51,17 @@ async def _safe_receive(client: ClaudeSDKClient):
             return
 
 
+# ──────────────────────────────────────────────────────────────
+# Single-Agent Session (integrator, synthesizer)
+# ──────────────────────────────────────────────────────────────
+
 async def run_session(
     client: ClaudeSDKClient,
     message: str,
     session_label: str = "session",
 ) -> tuple[str, str]:
-    """
-    Run a single agent session using the Claude Agent SDK.
-
-    Args:
-        client: Configured Claude SDK client.
-        message: The full prompt to send.
-        session_label: Label for logging.
-
-    Returns:
-        (status, response_text) where status is "continue" or "error".
-    """
-    print(f"  [{session_label}] Sending prompt to Claude Agent SDK...\n")
+    """Run a single agent session. Returns (status, response_text)."""
+    print(f"  [{session_label}] Sending prompt...\n")
 
     try:
         await client.query(message)
@@ -97,7 +73,6 @@ async def run_session(
             if msg_type == "AssistantMessage" and hasattr(msg, "content"):
                 for block in msg.content:
                     block_type = type(block).__name__
-
                     if block_type == "TextBlock" and hasattr(block, "text"):
                         response_text += block.text
                         print(block.text, end="", flush=True)
@@ -105,22 +80,17 @@ async def run_session(
                         print(f"\n  [Tool: {block.name}]", flush=True)
                         if hasattr(block, "input"):
                             input_str = str(block.input)
-                            if len(input_str) > 200:
-                                print(f"    Input: {input_str[:200]}...", flush=True)
-                            else:
-                                print(f"    Input: {input_str}", flush=True)
+                            print(f"    Input: {input_str[:200]}{'...' if len(input_str) > 200 else ''}", flush=True)
 
             elif msg_type == "UserMessage" and hasattr(msg, "content"):
                 for block in msg.content:
-                    block_type = type(block).__name__
-                    if block_type == "ToolResultBlock":
+                    if type(block).__name__ == "ToolResultBlock":
                         result_content = getattr(block, "content", "")
                         is_error = getattr(block, "is_error", False)
                         if "blocked" in str(result_content).lower():
                             print(f"    [BLOCKED] {result_content}", flush=True)
                         elif is_error:
-                            error_str = str(result_content)[:500]
-                            print(f"    [Error] {error_str}", flush=True)
+                            print(f"    [Error] {str(result_content)[:500]}", flush=True)
                         else:
                             print("    [Done]", flush=True)
 
@@ -145,76 +115,260 @@ async def run_session(
 
 
 # ──────────────────────────────────────────────────────────────
-# Role-Specific Session Launchers
+# Two-Agent Deliberation
 # ──────────────────────────────────────────────────────────────
 
-async def run_initializer_session(
+async def run_deliberation(
     project_dir: Path,
     model: str,
-    max_turns: int = 1000,
-) -> tuple[str, str]:
-    """Run the initializer session (Phase 1 — runs once)."""
-    print_session_header("INITIALIZER", 1)
+    role_a: str,
+    role_b: str,
+    shared_context: str,
+    prompt_a: str,
+    prompt_b: str,
+    max_rounds: int = 4,
+    max_turns_per_round: int = 200,
+    max_turns_final: int = 500,
+    session_label: str = "deliberation",
+) -> tuple[str, str, list[dict]]:
+    """
+    Run a multi-turn deliberation between two agents.
 
-    context = build_initializer_context(project_dir)
-    client = create_client(project_dir, model, role="initializer", max_turns=max_turns)
+    Agent A and Agent B alternate turns. Each turn is a fresh Claude Code
+    SDK session with the full shared context + conversation history.
+    The final round includes instructions to distill and commit the conclusion.
 
-    async with client:
-        status, response = await run_session(client, context, "initializer")
+    Returns:
+        (status, conclusion, transcript) where transcript is a list of
+        {"round": int, "role": str, "content": str} dicts.
+    """
+    transcript = []
+    conclusion = ""
+    status = "continue"
 
-    return status, response
+    print(f"\n  Starting deliberation: {role_a} vs {role_b} ({max_rounds} rounds max)")
+
+    for round_num in range(1, max_rounds + 1):
+        is_final = (round_num == max_rounds)
+        is_odd = (round_num % 2 == 1)
+
+        current_role = role_a if is_odd else role_b
+        current_prompt = prompt_a if is_odd else prompt_b
+        max_turns = max_turns_final if is_final else max_turns_per_round
+
+        # ── Build turn context ───────────────────────────────
+        turn_context = _build_turn_context(
+            shared_context=shared_context,
+            role_prompt=current_prompt,
+            transcript=transcript,
+            round_num=round_num,
+            max_rounds=max_rounds,
+            is_final=is_final,
+        )
+
+        # ── Run the turn ─────────────────────────────────────
+        label = f"{session_label}:R{round_num}:{current_role}"
+        print(f"\n  {'─' * 50}")
+        print(f"  Round {round_num}/{max_rounds}: {current_role}" +
+              (" (FINAL — write conclusion)" if is_final else ""))
+        print(f"  {'─' * 50}")
+
+        client = create_client(project_dir, model, role=current_role, max_turns=max_turns)
+        async with client:
+            turn_status, response = await run_session(client, turn_context, label)
+
+        if turn_status == "error":
+            status = "error"
+            transcript.append({"round": round_num, "role": current_role, "content": f"[ERROR: {response}]"})
+            break
+
+        transcript.append({"round": round_num, "role": current_role, "content": response})
+
+        # ── Check for early convergence ──────────────────────
+        if _has_conclusion_marker(response) and not is_final:
+            print(f"\n  Early convergence at round {round_num}.")
+            conclusion = _extract_conclusion(response)
+            break
+
+    # ── Extract conclusion ────────────────────────────────────
+    if not conclusion and transcript:
+        last_response = transcript[-1]["content"]
+        conclusion = _extract_conclusion(last_response)
+        if not conclusion:
+            conclusion = last_response
+
+    return status, conclusion, transcript
 
 
-async def run_explorer_session(
+def _build_turn_context(
+    shared_context: str,
+    role_prompt: str,
+    transcript: list[dict],
+    round_num: int,
+    max_rounds: int,
+    is_final: bool,
+) -> str:
+    """Assemble the full prompt for one deliberation turn."""
+
+    # Format prior turns
+    history = "_This is the opening round. No prior discussion._"
+    if transcript:
+        parts = []
+        for entry in transcript:
+            parts.append(f"### Round {entry['round']} — {entry['role']}:\n\n{entry['content']}")
+        history = "\n\n---\n\n".join(parts)
+
+    final_instructions = ""
+    if is_final:
+        final_instructions = """
+
+---
+
+## FINAL ROUND — PRODUCE THE CONCLUSION
+
+This is the last round. You MUST:
+
+1. **Synthesize the discussion** into a clear conclusion incorporating the strongest points from both sides.
+2. **Mark the conclusion** by writing `CONCLUSION:` on its own line, followed by the distilled result.
+3. **Write the conclusion to disk** — commit the agreed-upon output to the appropriate files (output.md for specs, index.json + node directories for initialization).
+4. **Document any remaining disagreements** as open questions in the conclusion, not as unresolved ambiguity.
+
+The conclusion must stand on its own without requiring the transcript.
+"""
+
+    convergence_note = ""
+    if not is_final:
+        convergence_note = "\n_If the discussion has reached a sufficient conclusion, write `CONCLUSION:` followed by the agreed result. The deliberation will end early._\n"
+
+    return f"""{shared_context}
+
+---
+
+# DELIBERATION — ROUND {round_num} of {max_rounds}
+{convergence_note}
+## Prior Discussion
+
+{history}
+
+---
+
+## YOUR ROLE THIS ROUND
+
+{role_prompt}
+{final_instructions}"""
+
+
+def _has_conclusion_marker(text: str) -> bool:
+    """Check if the response contains an explicit CONCLUSION: marker."""
+    for line in text.split("\n"):
+        stripped = line.strip().replace("*", "").replace("#", "").replace("`", "")
+        if stripped.upper().startswith("CONCLUSION:"):
+            return True
+    return False
+
+
+def _extract_conclusion(text: str) -> str:
+    """Extract text after the CONCLUSION: marker."""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        stripped = line.strip().replace("*", "").replace("#", "").replace("`", "")
+        if stripped.upper().startswith("CONCLUSION:"):
+            after_marker = stripped[len("CONCLUSION:"):].strip()
+            remaining = "\n".join(lines[i + 1:]).strip()
+            if after_marker:
+                return after_marker + ("\n" + remaining if remaining else "")
+            return remaining
+    return ""
+
+
+# ──────────────────────────────────────────────────────────────
+# Live Feed
+# ──────────────────────────────────────────────────────────────
+
+def append_to_feed(
     project_dir: Path,
     node_id: str,
-    model: str,
-    session_number: int = 1,
-    max_turns: int = 500,
-) -> tuple[str, str]:
-    """Run an explorer session targeting a specific node."""
-    print_session_header(f"EXPLORER — {node_id}", session_number)
+    description: str,
+    role_a: str,
+    role_b: str,
+    rounds: int,
+    conclusion: str,
+    transcript_path: str = "",
+    status: str = "converged",
+) -> None:
+    """
+    Append a conclusion summary to feed.md for real-time visibility.
+    Watch live with: tail -f generations/depthkit/feed.md
+    """
+    feed_path = project_dir / "feed.md"
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Mark node as in progress
-    try:
-        update_node_status(project_dir, node_id, STATUS_IN_PROGRESS)
-    except KeyError:
-        print(f"  Warning: Node {node_id} not found in index, proceeding anyway.")
+    # Truncate for scannability
+    conclusion_preview = conclusion[:2000]
+    if len(conclusion) > 2000:
+        conclusion_preview += "\n\n_[Truncated — see full spec in output.md]_"
 
-    context = build_explorer_context(project_dir, node_id)
-    client = create_client(project_dir, model, role="explorer", max_turns=max_turns)
+    entry = f"""
+---
 
-    async with client:
-        status, response = await run_session(client, context, f"explorer:{node_id}")
+## [{timestamp}] {node_id}: {description}
 
-    # After explorer commits, mark for review
-    if status == "continue":
-        try:
-            update_node_status(project_dir, node_id, STATUS_REVIEW)
-        except KeyError:
-            pass
+**Participants:** {role_a}, {role_b}
+**Rounds:** {rounds}
+**Status:** {status}
 
-    return status, response
+### Conclusion
+
+{conclusion_preview}
+
+**Full transcript:** {transcript_path}
+**Full spec:** nodes/{node_id}/output.md
+
+"""
+
+    if not feed_path.exists():
+        header = """# Depthkit Harness — Deliberation Feed
+
+_Live feed of conclusions as they are produced._
+```
+tail -f generations/depthkit/feed.md
+```
+
+"""
+        feed_path.write_text(header)
+
+    with open(feed_path, "a") as f:
+        f.write(entry)
+
+    print(f"  → Conclusion appended to feed.md")
 
 
-async def run_reviewer_session(
+def save_transcript(
     project_dir: Path,
     node_id: str,
-    model: str,
-    review_number: int = 1,
-    max_turns: int = 200,
-) -> tuple[str, str]:
-    """Run a reviewer session evaluating a specific node."""
-    print_session_header(f"REVIEWER — {node_id} (review #{review_number})", 0)
+    transcript: list[dict],
+) -> Path:
+    """Save the full deliberation transcript to the node or sessions directory."""
+    if node_id == "INIT":
+        dest_dir = project_dir / "sessions"
+        transcript_path = dest_dir / "init-deliberation-transcript.md"
+    else:
+        dest_dir = project_dir / "nodes" / node_id
+        transcript_path = dest_dir / "transcript.md"
 
-    context = build_reviewer_context(project_dir, node_id)
-    client = create_client(project_dir, model, role="reviewer", max_turns=max_turns)
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
-    async with client:
-        status, response = await run_session(client, context, f"reviewer:{node_id}")
+    parts = [f"# Deliberation Transcript: {node_id}\n"]
+    for entry in transcript:
+        parts.append(f"## Round {entry['round']} — {entry['role']}\n\n{entry['content']}\n")
 
-    return status, response
+    transcript_path.write_text("\n---\n\n".join(parts))
+    return transcript_path
 
+
+# ──────────────────────────────────────────────────────────────
+# Monologue Session Launchers (integrator, synthesizer)
+# ──────────────────────────────────────────────────────────────
 
 async def run_integrator_session(
     project_dir: Path,
@@ -223,8 +377,9 @@ async def run_integrator_session(
     max_turns: int = 300,
 ) -> tuple[str, str]:
     """Run an integrator session for coherence checking."""
-    print_session_header("INTEGRATOR", 0)
+    from context import build_integrator_context
 
+    print_session_header("INTEGRATOR", 0)
     context = build_integrator_context(project_dir, sample_node_ids)
     client = create_client(project_dir, model, role="integrator", max_turns=max_turns)
 
@@ -241,8 +396,9 @@ async def run_synthesizer_session(
     max_turns: int = 500,
 ) -> tuple[str, str]:
     """Run a synthesizer session to assemble deliverables."""
-    print_session_header("SYNTHESIZER", 0)
+    from context import build_synthesizer_context
 
+    print_session_header("SYNTHESIZER", 0)
     context = build_synthesizer_context(project_dir, cluster_node_ids)
     client = create_client(project_dir, model, role="synthesizer", max_turns=max_turns)
 
@@ -252,8 +408,26 @@ async def run_synthesizer_session(
     return status, response
 
 
+async def run_manifest_session(
+    project_dir: Path,
+    model: str,
+    max_turns: int = 500,
+) -> tuple[str, str]:
+    """Run the manifest author session to produce spec_manifest.md."""
+    from context import build_manifest_context
+
+    print_session_header("MANIFEST AUTHOR", 0)
+    context = build_manifest_context(project_dir)
+    client = create_client(project_dir, model, role="manifest_author", max_turns=max_turns)
+
+    async with client:
+        status, response = await run_session(client, context, "manifest")
+
+    return status, response
+
+
 # ──────────────────────────────────────────────────────────────
-# Session Log Writing
+# Session Log + Display
 # ──────────────────────────────────────────────────────────────
 
 def write_session_log(
@@ -264,14 +438,11 @@ def write_session_log(
     status: str,
     notes: str = "",
 ) -> Path:
-    """Write a session log entry to sessions/ directory."""
     sessions_dir = project_dir / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
-
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     log_file = sessions_dir / f"{timestamp}_{role}_{session_id}.md"
-
-    content = f"""# Session Log: {session_id}
+    log_file.write_text(f"""# Session Log: {session_id}
 
 **Role:** {role}
 **Target Node:** {target_node or "N/A"}
@@ -281,17 +452,11 @@ def write_session_log(
 ## Notes
 
 {notes}
-"""
-    log_file.write_text(content)
+""")
     return log_file
 
 
-# ──────────────────────────────────────────────────────────────
-# Display Helpers
-# ──────────────────────────────────────────────────────────────
-
 def print_session_header(label: str, session_num: int) -> None:
-    """Print a formatted header for a session."""
     print("\n" + "=" * 70)
     if session_num > 0:
         print(f"  SESSION {session_num}: {label}")

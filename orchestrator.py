@@ -3,21 +3,82 @@ Orchestrator
 ============
 
 The main loop managing the harness lifecycle:
-1. Initialization (runs once — decomposes seed into DAG)
-2. Exploration loop (picks frontier objectives, runs explorer → reviewer)
-3. Periodic integration (coherence checks)
-4. Convergence detection
+1. Initialization deliberation (two architects discover the decomposition)
+2. Exploration deliberation loop (spec author + challenger per objective)
+3. Periodic integration (monologue coherence checks)
+4. Convergence detection + synthesis
 
-This is the "brain" that routes sessions to roles, manages the frontier,
-and enforces the explore → review → verify pipeline.
+All init and explore phases use deliberation (two-agent conversation).
+Integrator and synthesizer remain monologue (single-agent).
 """
 
 import asyncio
+import os
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+
+# ──────────────────────────────────────────────────────────────
+# Peak-Hour Scheduling
+# ──────────────────────────────────────────────────────────────
+
+ET = ZoneInfo("America/New_York")
+
+# Anthropic peak pricing: 8 AM – 2 PM ET, weekdays
+PEAK_START_HOUR = 8
+PEAK_END_HOUR = 14
+
+
+def _is_peak() -> bool:
+    """Check if current time is within Anthropic peak pricing hours."""
+    now_et = datetime.now(ET)
+    weekday = now_et.weekday()  # 0=Mon, 6=Sun
+    hour = now_et.hour
+    return weekday < 5 and PEAK_START_HOUR <= hour < PEAK_END_HOUR
+
+
+def _next_offpeak() -> datetime:
+    """Return the next off-peak start time as a UTC datetime."""
+    now_et = datetime.now(ET)
+    # If peak today, off-peak starts at PEAK_END_HOUR today
+    candidate = now_et.replace(hour=PEAK_END_HOUR, minute=0, second=0, microsecond=0)
+    if candidate > now_et:
+        return candidate.astimezone(timezone.utc)
+    # Otherwise, check tomorrow
+    tomorrow = now_et + timedelta(days=1)
+    # Skip to Monday if tomorrow is weekend
+    while tomorrow.weekday() >= 5:
+        tomorrow += timedelta(days=1)
+    # Off-peak resumes at midnight, but next peak is 8 AM — so 00:00 is fine
+    # Actually, off-peak starts right at PEAK_END_HOUR, or at midnight after a weekend
+    return tomorrow.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+async def _await_offpeak() -> None:
+    """If currently in peak hours, sleep until off-peak resumes."""
+    if os.environ.get("IGNORE_PEAK_HOURS", "").lower() in ("true", "1", "yes"):
+        return
+
+    if not _is_peak():
+        return
+
+    resume = _next_offpeak()
+    now = datetime.now(timezone.utc)
+    wait_seconds = (resume - now).total_seconds()
+
+    if wait_seconds <= 0:
+        return
+
+    resume_et = resume.astimezone(ET)
+    print(f"\n  ⏸  PEAK HOURS — Anthropic peak pricing is active (8 AM – 2 PM ET, weekdays).")
+    print(f"     Pausing until {resume_et.strftime('%I:%M %p ET')} ({int(wait_seconds // 60)} minutes).")
+    print(f"     Set IGNORE_PEAK_HOURS=true in .env to override.\n")
+
+    await asyncio.sleep(wait_seconds)
 
 from dag import (
     read_index,
@@ -28,6 +89,7 @@ from dag import (
     mark_dead_end,
     read_integrator_coverage,
     write_integrator_coverage,
+    read_node_meta,
     STATUS_OPEN,
     STATUS_IN_PROGRESS,
     STATUS_REVIEW,
@@ -37,23 +99,21 @@ from dag import (
     STATUS_BLOCKED,
 )
 from agent import (
-    run_initializer_session,
-    run_explorer_session,
-    run_reviewer_session,
+    run_deliberation,
     run_integrator_session,
     run_synthesizer_session,
+    run_manifest_session,
     write_session_log,
+    append_to_feed,
+    save_transcript,
+    print_session_header,
 )
-from context import PROMPTS_DIR
-
-
-# ──────────────────────────────────────────────────────────────
-# Configuration
-# ──────────────────────────────────────────────────────────────
-
-AUTO_CONTINUE_DELAY = 3       # Seconds between sessions
-INTEGRATOR_CADENCE = 15       # Run integrator every N explorer completions
-MAX_REVIEWS_PER_NODE = 2      # Max review rounds before auto-approve
+from context import (
+    build_init_deliberation_context,
+    build_explore_deliberation_context,
+    load_prompt,
+    PROMPTS_DIR,
+)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -64,68 +124,103 @@ async def run_harness(
     project_dir: Path,
     model: str,
     max_iterations: Optional[int] = None,
-    auto_continue_delay: int = AUTO_CONTINUE_DELAY,
-    review_after_explore: bool = True,
-    integrator_cadence: int = INTEGRATOR_CADENCE,
+    auto_continue_delay: int = 3,
+    integrator_cadence: int = 15,
+    init_rounds: int = 6,
+    explore_rounds: int = 4,
 ) -> None:
     """
     Run the full harness lifecycle.
 
     Args:
         project_dir: Root directory for the project.
-        model: Claude model to use for all roles.
+        model: Claude model to use.
         max_iterations: Max explorer iterations (None = unlimited).
         auto_continue_delay: Seconds between sessions.
-        review_after_explore: Whether to trigger review after each explorer.
         integrator_cadence: Run integrator every N explorer completions.
+        init_rounds: Deliberation rounds for initialization.
+        explore_rounds: Deliberation rounds per objective.
     """
     print("\n" + "=" * 70)
-    print("  DEPTHKIT MULTI-AGENT HARNESS")
+    print("  DEPTHKIT MULTI-AGENT HARNESS (Deliberation Mode)")
     print("=" * 70)
     print(f"\n  Project directory: {project_dir}")
     print(f"  Model: {model}")
-    if max_iterations:
-        print(f"  Max iterations: {max_iterations}")
-    else:
-        print(f"  Max iterations: Unlimited")
-    print(f"  Review after explore: {review_after_explore}")
-    print(f"  Integrator cadence: every {integrator_cadence} explorer completions")
+    print(f"  Max iterations: {max_iterations or 'Unlimited'}")
+    print(f"  Init deliberation rounds: {init_rounds}")
+    print(f"  Explore deliberation rounds: {explore_rounds}")
+    print(f"  Integrator cadence: every {integrator_cadence} explorations")
+    print(f"\n  Watch conclusions live:")
+    print(f"    tail -f {project_dir}/feed.md")
     print()
 
-    # ── Phase 1: Initialization ──────────────────────────────
+    # ── Phase 1: Initialization Deliberation ─────────────────
     project_dir.mkdir(parents=True, exist_ok=True)
 
     index = read_index(project_dir)
     is_fresh = not index or not index.get("nodes")
 
     if is_fresh:
-        print("  Phase 1: INITIALIZATION (first run)")
-        print("  " + "-" * 50)
+        await _await_offpeak()
+        print_session_header("INITIALIZATION DELIBERATION", 1)
+        print("  Two architects will converse to discover the project decomposition.")
+        print("  The number of objectives is NOT predetermined — it emerges from the conversation.")
+        print()
         _setup_project(project_dir)
 
-        status, response = await run_initializer_session(
-            project_dir, model, max_turns=1000
+        shared_context = build_init_deliberation_context(project_dir)
+        prompt_a = load_prompt("architect_a_prompt")
+        prompt_b = load_prompt("architect_b_prompt")
+
+        status, conclusion, transcript = await run_deliberation(
+            project_dir=project_dir,
+            model=model,
+            role_a="architect_a",
+            role_b="architect_b",
+            shared_context=shared_context,
+            prompt_a=prompt_a,
+            prompt_b=prompt_b,
+            max_rounds=init_rounds,
+            max_turns_per_round=300,
+            max_turns_final=1000,  # Final round creates filesystem
+            session_label="init-delib",
+        )
+
+        # Save transcript and feed
+        t_path = save_transcript(project_dir, "INIT", transcript)
+        append_to_feed(
+            project_dir, "INIT", "Project decomposition",
+            "architect_a", "architect_b",
+            rounds=len(transcript),
+            conclusion=conclusion,
+            transcript_path=str(t_path.relative_to(project_dir)),
+            status="converged" if status == "continue" else "error",
         )
 
         write_session_log(
-            project_dir, "init-001", "initializer", None, status,
-            "Initial decomposition of seed into DAG."
+            project_dir, "init-001", "deliberation:init", None, status,
+            f"Init deliberation: {len(transcript)} rounds."
         )
 
         if status == "error":
-            print("\n  Initializer failed. Check logs and retry.")
+            print("\n  Initialization deliberation failed. Check logs and retry.")
             return
 
-        print("\n  Initialization complete.")
+        print("\n  Initialization deliberation complete.")
         print_progress(project_dir)
+        _git_push(project_dir)
         await asyncio.sleep(auto_continue_delay)
     else:
         print("  Resuming existing project.")
         print_progress(project_dir)
 
-    # ── Phase 2+3: Exploration + Review Loop ─────────────────
+    # ── Phase 2: Exploration Deliberation Loop ───────────────
     explorer_count = 0
     iteration = 0
+
+    # Load explore prompts once
+    prompt_author = load_prompt("spec_author_prompt")
+    prompt_challenger = load_prompt("spec_challenger_prompt")
 
     while True:
         iteration += 1
@@ -133,6 +228,9 @@ async def run_harness(
         if max_iterations and iteration > max_iterations:
             print(f"\n  Reached max iterations ({max_iterations}).")
             break
+
+        # Wait for off-peak pricing if needed
+        await _await_offpeak()
 
         # Check for convergence
         summary = get_progress_summary(project_dir)
@@ -145,36 +243,9 @@ async def run_harness(
         frontier = refresh_frontier(project_dir)
 
         if not frontier:
-            # Check if there are nodes in review that need processing
-            index = read_index(project_dir)
-            review_nodes = [
-                nid for nid, n in index.get("nodes", {}).items()
-                if n["status"] == STATUS_REVIEW
-            ]
-
-            if review_nodes and review_after_explore:
-                # Run reviewer for the first node in review
-                node_id = review_nodes[0]
-                print(f"\n  No frontier objectives. Running review for {node_id}.")
-
-                status, response = await run_reviewer_session(
-                    project_dir, node_id, model
-                )
-
-                write_session_log(
-                    project_dir, f"rev-{iteration:03d}", "reviewer",
-                    node_id, status, f"Review of {node_id}."
-                )
-
-                # Parse reviewer verdict from response
-                _process_review_verdict(project_dir, node_id, response)
-
-                await asyncio.sleep(auto_continue_delay)
-                continue
-            else:
-                print("\n  Frontier is empty and no reviews pending.")
-                print("  Possible states: all nodes blocked or all verified.")
-                break
+            print("\n  Frontier is empty.")
+            print("  Possible states: all nodes verified, blocked, or waiting on blocked deps.")
+            break
 
         # Pick highest priority frontier objective
         target = frontier[0]
@@ -184,21 +255,57 @@ async def run_harness(
         print(f"    Priority: {target['priority']} | "
               f"Blocks: {len(target['blocks'])} downstream nodes")
 
-        # ── Run Explorer Session ─────────────────────────────
-        explorer_count += 1
+        # Mark in progress
+        try:
+            update_node_status(project_dir, node_id, STATUS_IN_PROGRESS)
+        except KeyError:
+            pass
 
-        status, response = await run_explorer_session(
-            project_dir, node_id, model,
-            session_number=iteration,
+        # ── Run Explore Deliberation ─────────────────────────
+        explorer_count += 1
+        meta = read_node_meta(project_dir, node_id)
+        description = meta.get("description", node_id)
+
+        print_session_header(f"EXPLORE DELIBERATION — {node_id}", iteration)
+        print(f"  Spec Author + Spec Challenger will converse to produce the specification.")
+        print(f"  Objective: {description[:100]}{'...' if len(description) > 100 else ''}")
+        print()
+
+        shared_context = build_explore_deliberation_context(project_dir, node_id)
+
+        status, conclusion, transcript = await run_deliberation(
+            project_dir=project_dir,
+            model=model,
+            role_a="spec_author",
+            role_b="spec_challenger",
+            shared_context=shared_context,
+            prompt_a=prompt_author,
+            prompt_b=prompt_challenger,
+            max_rounds=explore_rounds,
+            max_turns_per_round=200,
+            max_turns_final=500,
+            session_label=f"explore-{node_id}",
+        )
+
+        # Save transcript and feed
+        t_path = save_transcript(project_dir, node_id, transcript)
+        append_to_feed(
+            project_dir, node_id, description,
+            "spec_author", "spec_challenger",
+            rounds=len(transcript),
+            conclusion=conclusion,
+            transcript_path=str(t_path.relative_to(project_dir)),
+            status="converged" if status == "continue" else "error",
         )
 
         write_session_log(
-            project_dir, f"exp-{iteration:03d}", "explorer",
-            node_id, status, f"Explorer working on {node_id}."
+            project_dir, f"exp-{iteration:03d}", "deliberation:explore",
+            node_id, status,
+            f"Explore deliberation for {node_id}: {len(transcript)} rounds."
         )
 
         if status == "error":
-            print(f"  Explorer session failed for {node_id}. Returning to open.")
+            print(f"  Deliberation failed for {node_id}. Returning to open.")
             try:
                 update_node_status(project_dir, node_id, STATUS_OPEN)
             except KeyError:
@@ -206,47 +313,68 @@ async def run_harness(
             await asyncio.sleep(auto_continue_delay)
             continue
 
-        # Check if explorer flagged this as a dead end
-        if _check_for_dead_end(response):
-            print(f"  Explorer flagged {node_id} as DEAD END.")
+        # Check for dead end
+        if _check_for_dead_end(conclusion):
+            print(f"  Deliberation concluded {node_id} is a DEAD END.")
             mark_dead_end(project_dir, node_id)
             await asyncio.sleep(auto_continue_delay)
             continue
 
+        # Mark as verified — the challenger's adversarial review is built into
+        # the deliberation, so a converged conclusion is peer-reviewed by design.
+        try:
+            index = read_index(project_dir)
+            node = index.get("nodes", {}).get(node_id, {})
+            vs = node.get("visual_status")
+
+            if vs and vs != "tuned":
+                update_node_status(
+                    project_dir, node_id, STATUS_APPROVED,
+                    review_status="approved",
+                    visual_status="needs_tuning",
+                )
+                print(f"  {node_id}: Approved (awaiting visual tuning)")
+            else:
+                update_node_status(
+                    project_dir, node_id, STATUS_VERIFIED,
+                    review_status="approved",
+                )
+                print(f"  {node_id}: Verified ✓")
+        except KeyError:
+            pass
+
         print_progress(project_dir)
+        _git_push(project_dir)
 
-        # ── Run Reviewer Session (if enabled) ────────────────
-        if review_after_explore:
-            await asyncio.sleep(auto_continue_delay)
-
-            print(f"\n  Triggering review for {node_id}...")
-
-            rev_status, rev_response = await run_reviewer_session(
-                project_dir, node_id, model
-            )
-
-            write_session_log(
-                project_dir, f"rev-{iteration:03d}", "reviewer",
-                node_id, rev_status, f"Review of {node_id} after explorer session."
-            )
-
-            _process_review_verdict(project_dir, node_id, rev_response)
-
-        # ── Periodic Integrator Check ────────────────────────
+        # ── Periodic Integrator ──────────────────────────────
         if explorer_count % integrator_cadence == 0 and explorer_count > 0:
             print(f"\n  Integrator cadence reached ({explorer_count} explorations).")
             await _run_integrator(project_dir, model)
 
-        # ── Auto-continue ────────────────────────────────────
         await asyncio.sleep(auto_continue_delay)
 
-    # ── Phase 4: Synthesis ────────────────────────────────────
+    # ── Phase 3: Manifest + Synthesis ────────────────────────
     summary = get_progress_summary(project_dir)
     if summary["verified"] > 0:
         print("\n" + "=" * 70)
-        print("  PHASE 4: SYNTHESIS")
+        print("  PHASE 3: MANIFEST + SYNTHESIS")
         print("=" * 70)
 
+        # Step 1: Produce spec_manifest.md (the navigation document)
+        # This uses index + meta.json descriptions only — fits in one context window.
+        print(f"\n  Producing spec_manifest.md (navigation document for the DAG)...")
+        man_status, man_response = await run_manifest_session(project_dir, model)
+        write_session_log(
+            project_dir, "manifest-001", "manifest_author",
+            None, man_status,
+            "Produced spec_manifest.md — the navigation document for the spec DAG."
+        )
+        if man_status == "error":
+            print("  Manifest author failed. spec_manifest.md may need manual creation.")
+        else:
+            print("  spec_manifest.md created.")
+
+        # Step 2: Run synthesizer for consolidated deliverable docs (optional)
         index = read_index(project_dir)
         verified_ids = [
             nid for nid, n in index.get("nodes", {}).items()
@@ -268,16 +396,18 @@ async def run_harness(
             else:
                 print("  Synthesis complete.")
 
+        _git_push(project_dir)
+
     # ── Final Summary ────────────────────────────────────────
     print("\n" + "=" * 70)
     print("  HARNESS COMPLETE")
     print("=" * 70)
     print(f"\n  Project: {project_dir}")
     print_progress(project_dir)
-
-    # Print the DAG output location
     print(f"\n  DAG output: {project_dir / 'index.json'}")
-    print(f"  Node artifacts: {project_dir / 'nodes/'}")
+    print(f"  Navigation: {project_dir / 'spec_manifest.md'}")
+    print(f"  Node specs: {project_dir / 'nodes/'}")
+    print(f"  Conclusion feed: {project_dir / 'feed.md'}")
     print(f"  Session logs: {project_dir / 'sessions/'}")
     print()
 
@@ -288,144 +418,64 @@ async def run_harness(
 
 def _setup_project(project_dir: Path) -> None:
     """Set up the initial project structure."""
-    # Create directories
     (project_dir / "nodes").mkdir(parents=True, exist_ok=True)
     (project_dir / "dead_ends").mkdir(parents=True, exist_ok=True)
     (project_dir / "sessions").mkdir(parents=True, exist_ok=True)
     (project_dir / "synthesis").mkdir(parents=True, exist_ok=True)
 
-    # Copy seed document into the project
     seed_source = PROMPTS_DIR / "seed.md"
     seed_dest = project_dir / "seed.md"
     if seed_source.exists() and not seed_dest.exists():
         shutil.copy(seed_source, seed_dest)
         print("  Copied seed.md into project directory.")
     elif not seed_dest.exists():
-        print("  WARNING: No seed.md found. The initializer will need it.")
+        print("  WARNING: No seed.md found.")
 
-    # Initialize git if not already
     import subprocess
     if not (project_dir / ".git").exists():
-        subprocess.run(
-            ["git", "init"],
-            cwd=project_dir,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["git", "add", "."],
-            cwd=project_dir,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["git", "commit", "-m", "Initial project setup"],
-            cwd=project_dir,
-            capture_output=True,
-        )
+        subprocess.run(["git", "init"], cwd=project_dir, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=project_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Initial project setup"], cwd=project_dir, capture_output=True)
         print("  Initialized git repository.")
 
 
-def _strip_markdown(text: str) -> str:
-    """Remove markdown formatting so verdict parsing isn't tripped by **, `, #, etc."""
-    text = re.sub(r'\*+', '', text)
-    text = re.sub(r'`+', '', text)
-    text = re.sub(r'#+\s*', '', text)
-    return text
+def _git_push(project_dir: Path) -> None:
+    """Push to remote via Claude Code's SSH key: git push claude master."""
+    import subprocess
+    remote = os.environ.get("GIT_PUSH_REMOTE", "claude")
+    branch = os.environ.get("GIT_PUSH_BRANCH", "master")
 
-
-def _check_for_dead_end(response: str) -> bool:
-    """Check if the explorer's response indicates the objective is a dead end."""
-    cleaned = _strip_markdown(response)
-
-    # Explicit dead-end flag: "DEAD_END: true" / "infeasible: yes" etc.
-    if re.search(
-        r'(?:dead[_\s-]?end|infeasible|unachievable)\s*[:—\-]\s*(?:true|yes)',
-        cleaned,
-        re.IGNORECASE,
-    ):
-        return True
-
-    # Verdict-style: "VERDICT: dead_end"
-    return bool(re.search(
-        r'verdict\s*[:—\-]\s*dead[_\s-]?end',
-        cleaned,
-        re.IGNORECASE,
-    ))
-
-
-def _process_review_verdict(project_dir: Path, node_id: str, review_response: str) -> None:
-    """
-    Parse the reviewer's verdict from the response and update node status.
-
-    The reviewer should include a verdict line like:
-      VERDICT: approved
-      VERDICT: revision_needed
-      VERDICT: blocked
-      VERDICT: dead_end
-
-    Handles markdown formatting, variable whitespace, and case variations.
-    If no clear verdict is found, defaults to revision_needed (conservative).
-    """
-    cleaned = _strip_markdown(review_response)
-
-    match = re.search(
-        r'verdict\s*[:—\-]\s*(approved|revision[_\s-]?needed|blocked|dead[_\s-]?end)',
-        cleaned,
-        re.IGNORECASE,
+    result = subprocess.run(
+        ["git", "push", remote, branch],
+        cwd=project_dir,
+        capture_output=True,
+        text=True,
     )
-
-    raw_verdict = match.group(1).strip().lower().replace(' ', '_').replace('-', '_') if match else None
-
-    if raw_verdict == "revision_needed":
-        print(f"  Review verdict: REVISION NEEDED for {node_id}")
-        try:
-            update_node_status(project_dir, node_id, STATUS_REVISION_NEEDED)
-        except KeyError:
-            pass
-    elif raw_verdict == "blocked":
-        print(f"  Review verdict: BLOCKED for {node_id}")
-        try:
-            update_node_status(project_dir, node_id, STATUS_BLOCKED)
-        except KeyError:
-            pass
-    elif raw_verdict == "dead_end":
-        print(f"  Review verdict: DEAD END for {node_id}")
-        mark_dead_end(project_dir, node_id)
-    elif raw_verdict == "approved":
-        print(f"  Review verdict: APPROVED for {node_id}")
-        try:
-            index = read_index(project_dir)
-            node = index.get("nodes", {}).get(node_id, {})
-            vs = node.get("visual_status")
-
-            if vs and vs != "tuned":
-                update_node_status(
-                    project_dir, node_id, STATUS_APPROVED,
-                    review_status="approved",
-                    visual_status="needs_tuning",
-                )
-                print(f"    (Node requires visual tuning before verification)")
-            else:
-                update_node_status(
-                    project_dir, node_id, STATUS_VERIFIED,
-                    review_status="approved",
-                )
-        except KeyError:
-            pass
+    if result.returncode == 0:
+        print(f"  → Pushed to {remote}/{branch}")
     else:
-        print(f"  Review verdict: NO CLEAR VERDICT for {node_id} — defaulting to REVISION NEEDED")
-        try:
-            update_node_status(project_dir, node_id, STATUS_REVISION_NEEDED)
-        except KeyError:
-            pass
+        stderr = result.stderr.strip()
+        if "No configured push destination" in stderr or "does not appear to be a git repository" in stderr:
+            print(f"  → Push skipped (remote '{remote}' not configured — add it with git remote add {remote} <url>)")
+        else:
+            print(f"  → Push failed: {stderr[:200]}")
+
+
+def _check_for_dead_end(text: str) -> bool:
+    """Check if the conclusion indicates a dead end."""
+    cleaned = re.sub(r'\*+', '', text)
+    cleaned = re.sub(r'`+', '', cleaned)
+    cleaned = re.sub(r'#+\s*', '', cleaned)
+
+    if re.search(r'(?:dead[_\s-]?end|infeasible|unachievable)\s*[:—\-]\s*(?:true|yes)', cleaned, re.IGNORECASE):
+        return True
+    return bool(re.search(r'verdict\s*[:—\-]\s*dead[_\s-]?end', cleaned, re.IGNORECASE))
 
 
 async def _run_integrator(project_dir: Path, model: str) -> None:
-    """Run an integrator session with a sample of verified nodes, tracking coverage."""
+    """Run an integrator session with rotating coverage."""
     index = read_index(project_dir)
-    verified = [
-        nid for nid, n in index.get("nodes", {}).items()
-        if n["status"] == STATUS_VERIFIED
-    ]
+    verified = [nid for nid, n in index.get("nodes", {}).items() if n["status"] == STATUS_VERIFIED]
 
     if len(verified) < 3:
         print("  Skipping integrator — fewer than 3 verified nodes.")
@@ -435,23 +485,17 @@ async def _run_integrator(project_dir: Path, model: str) -> None:
     coverage = read_integrator_coverage(project_dir)
     now = datetime.now(timezone.utc).isoformat()
 
-    # Sort verified nodes: never-sampled first, then by oldest sample time
     def sort_key(nid):
         last = coverage.get(nid)
-        if last is None:
-            return ""  # sorts first — never sampled
-        return last
+        return "" if last is None else last
 
-    sorted_by_staleness = sorted(verified, key=sort_key)
-    sample = sorted_by_staleness[:sample_size]
-
+    sample = sorted(verified, key=sort_key)[:sample_size]
     never_sampled = sum(1 for nid in verified if nid not in coverage)
     print(f"  Running integrator with {len(sample)} sampled nodes...")
     print(f"    ({never_sampled} never sampled, {len(verified) - never_sampled} previously sampled)")
 
     status, response = await run_integrator_session(project_dir, sample, model)
 
-    # Update coverage tracking
     for nid in sample:
         coverage[nid] = now
     write_integrator_coverage(project_dir, coverage)
