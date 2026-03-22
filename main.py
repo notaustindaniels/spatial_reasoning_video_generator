@@ -67,9 +67,9 @@ Watch conclusions live (in another terminal):
     parser.add_argument("--integrator-cadence", type=int, default=None,
         help=f"Integrator every N explorations (default: {DEFAULT_INTEGRATOR_CADENCE})")
     parser.add_argument("--init-rounds", type=int, default=None,
-        help=f"Deliberation rounds for initialization (default: {DEFAULT_INIT_ROUNDS})")
+        help=f"Min rounds before convergence eligible for init (default: {DEFAULT_INIT_ROUNDS})")
     parser.add_argument("--explore-rounds", type=int, default=None,
-        help=f"Deliberation rounds per objective (default: {DEFAULT_EXPLORE_ROUNDS})")
+        help=f"Min rounds before convergence eligible per objective (default: {DEFAULT_EXPLORE_ROUNDS})")
 
     return parser.parse_args()
 
@@ -123,11 +123,15 @@ def main() -> None:
     args = parse_args()
     config = resolve_config(args)
 
+    # Check auth: either CLAUDE_CODE_OAUTH_TOKEN is set, or CLI is already authenticated
     if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        print("Error: CLAUDE_CODE_OAUTH_TOKEN not set.")
-        print("  export CLAUDE_CODE_OAUTH_TOKEN='your-token'")
-        print("  or set it in .env")
-        sys.exit(1)
+        import subprocess
+        result = subprocess.run(["claude", "auth", "status"], capture_output=True, text=True)
+        if '"loggedIn": true' not in result.stdout:
+            print("Error: No authentication found.")
+            print("  Either set CLAUDE_CODE_OAUTH_TOKEN in .env")
+            print("  or run: claude auth login")
+            sys.exit(1)
 
     print()
     print("  Configuration:")

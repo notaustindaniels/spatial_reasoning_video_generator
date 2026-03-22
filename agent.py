@@ -126,17 +126,19 @@ async def run_deliberation(
     shared_context: str,
     prompt_a: str,
     prompt_b: str,
-    max_rounds: int = 4,
+    min_rounds: int = 4,
+    max_rounds: int = 20,
     max_turns_per_round: int = 200,
     max_turns_final: int = 500,
     session_label: str = "deliberation",
 ) -> tuple[str, str, list[dict]]:
     """
-    Run a multi-turn deliberation between two agents.
+    Run a multi-turn deliberation between two agents until convergence.
 
     Agent A and Agent B alternate turns. Each turn is a fresh Claude Code
     SDK session with the full shared context + conversation history.
-    The final round includes instructions to distill and commit the conclusion.
+    The deliberation runs until an agent produces a CONCLUSION: marker
+    (earliest at min_rounds), or until max_rounds is hit as a safety ceiling.
 
     Returns:
         (status, conclusion, transcript) where transcript is a list of
@@ -146,15 +148,17 @@ async def run_deliberation(
     conclusion = ""
     status = "continue"
 
-    print(f"\n  Starting deliberation: {role_a} vs {role_b} ({max_rounds} rounds max)")
+    print(f"\n  Starting deliberation: {role_a} vs {role_b} "
+          f"(converge after {min_rounds}+ rounds, ceiling {max_rounds})")
 
     for round_num in range(1, max_rounds + 1):
-        is_final = (round_num == max_rounds)
+        is_ceiling = (round_num == max_rounds)
+        eligible_to_converge = (round_num >= min_rounds)
         is_odd = (round_num % 2 == 1)
 
         current_role = role_a if is_odd else role_b
         current_prompt = prompt_a if is_odd else prompt_b
-        max_turns = max_turns_final if is_final else max_turns_per_round
+        max_turns = max_turns_final if (is_ceiling or eligible_to_converge) else max_turns_per_round
 
         # ── Build turn context ───────────────────────────────
         turn_context = _build_turn_context(
@@ -163,14 +167,19 @@ async def run_deliberation(
             transcript=transcript,
             round_num=round_num,
             max_rounds=max_rounds,
-            is_final=is_final,
+            is_final=is_ceiling,
+            eligible_to_converge=eligible_to_converge,
         )
 
         # ── Run the turn ─────────────────────────────────────
         label = f"{session_label}:R{round_num}:{current_role}"
         print(f"\n  {'─' * 50}")
-        print(f"  Round {round_num}/{max_rounds}: {current_role}" +
-              (" (FINAL — write conclusion)" if is_final else ""))
+        round_label = f"  Round {round_num}/{max_rounds}: {current_role}"
+        if is_ceiling:
+            round_label += " (CEILING — must write conclusion)"
+        elif eligible_to_converge:
+            round_label += " (convergence eligible)"
+        print(round_label)
         print(f"  {'─' * 50}")
 
         client = create_client(project_dir, model, role=current_role, max_turns=max_turns)
@@ -184,9 +193,9 @@ async def run_deliberation(
 
         transcript.append({"round": round_num, "role": current_role, "content": response})
 
-        # ── Check for early convergence ──────────────────────
-        if _has_conclusion_marker(response) and not is_final:
-            print(f"\n  Early convergence at round {round_num}.")
+        # ── Check for convergence ─────────────────────────────
+        if _has_conclusion_marker(response):
+            print(f"\n  Converged at round {round_num}.")
             conclusion = _extract_conclusion(response)
             break
 
@@ -207,6 +216,7 @@ def _build_turn_context(
     round_num: int,
     max_rounds: int,
     is_final: bool,
+    eligible_to_converge: bool = False,
 ) -> str:
     """Assemble the full prompt for one deliberation turn."""
 
@@ -218,15 +228,15 @@ def _build_turn_context(
             parts.append(f"### Round {entry['round']} — {entry['role']}:\n\n{entry['content']}")
         history = "\n\n---\n\n".join(parts)
 
-    final_instructions = ""
+    convergence_instructions = ""
     if is_final:
-        final_instructions = """
+        convergence_instructions = """
 
 ---
 
-## FINAL ROUND — PRODUCE THE CONCLUSION
+## CEILING REACHED — PRODUCE THE CONCLUSION NOW
 
-This is the last round. You MUST:
+This is the maximum round. You MUST conclude now:
 
 1. **Synthesize the discussion** into a clear conclusion incorporating the strongest points from both sides.
 2. **Mark the conclusion** by writing `CONCLUSION:` on its own line, followed by the distilled result.
@@ -235,17 +245,31 @@ This is the last round. You MUST:
 
 The conclusion must stand on its own without requiring the transcript.
 """
+    elif eligible_to_converge:
+        convergence_instructions = """
 
-    convergence_note = ""
-    if not is_final:
-        convergence_note = "\n_If the discussion has reached a sufficient conclusion, write `CONCLUSION:` followed by the agreed result. The deliberation will end early._\n"
+---
+
+## CONVERGENCE CHECK
+
+You have had sufficient discussion rounds. If you believe the discussion has reached a point where:
+- The key design decisions are agreed upon
+- Remaining disagreements are minor or documented as open questions
+- The conclusion is ready to be written
+
+Then **write your conclusion now**: write `CONCLUSION:` on its own line, followed by the distilled result, and **write it to disk** (output.md for specs, index.json + node directories for initialization).
+
+If substantive disagreements remain or important aspects haven't been addressed yet, continue the discussion — there are more rounds available. Don't rush to conclude if the design isn't ready.
+"""
+    else:
+        convergence_instructions = "\n_Focus on the discussion. Convergence is not expected yet — work through the design thoroughly._\n"
 
     return f"""{shared_context}
 
 ---
 
 # DELIBERATION — ROUND {round_num} of {max_rounds}
-{convergence_note}
+{convergence_instructions}
 ## Prior Discussion
 
 {history}
@@ -254,8 +278,7 @@ The conclusion must stand on its own without requiring the transcript.
 
 ## YOUR ROLE THIS ROUND
 
-{role_prompt}
-{final_instructions}"""
+{role_prompt}"""
 
 
 def _has_conclusion_marker(text: str) -> bool:

@@ -180,9 +180,10 @@ async def run_harness(
             shared_context=shared_context,
             prompt_a=prompt_a,
             prompt_b=prompt_b,
-            max_rounds=init_rounds,
+            min_rounds=init_rounds,
+            max_rounds=init_rounds * 4,  # Safety ceiling
             max_turns_per_round=300,
-            max_turns_final=1000,  # Final round creates filesystem
+            max_turns_final=1000,  # Conclusion round creates filesystem
             session_label="init-delib",
         )
 
@@ -281,7 +282,8 @@ async def run_harness(
             shared_context=shared_context,
             prompt_a=prompt_author,
             prompt_b=prompt_challenger,
-            max_rounds=explore_rounds,
+            min_rounds=explore_rounds,
+            max_rounds=explore_rounds * 4,  # Safety ceiling
             max_turns_per_round=200,
             max_turns_final=500,
             session_label=f"explore-{node_id}",
