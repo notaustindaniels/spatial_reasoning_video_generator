@@ -351,3 +351,45 @@ def print_progress(project_dir: Path) -> None:
     if s["visual_needs_tuning"] > 0 or s["visual_tuned"] > 0:
         print(f"    Visual Tuning: {s['visual_tuned']} tuned, "
               f"{s['visual_needs_tuning']} awaiting")
+
+
+# ──────────────────────────────────────────────────────────────
+# Category Clustering (for map-reduce synthesis)
+# ──────────────────────────────────────────────────────────────
+
+CATEGORIES = ["engine", "spatial", "tuning", "integration"]
+
+
+def cluster_verified_by_category(project_dir: Path) -> dict[str, list[str]]:
+    """
+    Group verified node IDs by their category field.
+
+    Returns dict like:
+        {"engine": ["OBJ-001", "OBJ-003", ...], "spatial": [...], ...}
+
+    Nodes without a category (or with an unrecognized category) go into "uncategorized".
+    Categories are read from index.json first, falling back to meta.json.
+    """
+    index = read_index(project_dir)
+    nodes = index.get("nodes", {})
+
+    clusters: dict[str, list[str]] = {cat: [] for cat in CATEGORIES}
+    clusters["uncategorized"] = []
+
+    for nid, node in nodes.items():
+        if node.get("status") != STATUS_VERIFIED:
+            continue
+
+        # Try index.json first (lightweight), fall back to meta.json
+        category = node.get("category")
+        if not category:
+            meta = read_node_meta(project_dir, nid)
+            category = meta.get("category")
+
+        if category in CATEGORIES:
+            clusters[category].append(nid)
+        else:
+            clusters["uncategorized"].append(nid)
+
+    # Remove empty clusters
+    return {cat: ids for cat, ids in clusters.items() if ids}

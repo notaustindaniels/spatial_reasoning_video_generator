@@ -126,19 +126,21 @@ async def run_deliberation(
     shared_context: str,
     prompt_a: str,
     prompt_b: str,
-    min_rounds: int = 4,
-    max_rounds: int = 20,
+    safety_cap: int = 20,
     max_turns_per_round: int = 200,
-    max_turns_final: int = 500,
+    max_turns_commit: int = 500,
     session_label: str = "deliberation",
 ) -> tuple[str, str, list[dict]]:
     """
-    Run a multi-turn deliberation between two agents until convergence.
+    Run a convergence-driven deliberation between two agents.
 
-    Agent A and Agent B alternate turns. Each turn is a fresh Claude Code
-    SDK session with the full shared context + conversation history.
-    The deliberation runs until an agent produces a CONCLUSION: marker
-    (earliest at min_rounds), or until max_rounds is hit as a safety ceiling.
+    Agent A and Agent B alternate turns until they converge. Convergence
+    is signaled when either agent writes CONCLUSION: in their response.
+    The safety_cap prevents infinite loops but is NOT a target — most
+    deliberations should converge well before hitting it.
+
+    When convergence is detected, if the concluding agent hasn't already
+    written files to disk, one more commit round is triggered.
 
     Returns:
         (status, conclusion, transcript) where transcript is a list of
@@ -147,18 +149,19 @@ async def run_deliberation(
     transcript = []
     conclusion = ""
     status = "continue"
+    converged = False
 
-    print(f"\n  Starting deliberation: {role_a} vs {role_b} "
-          f"(converge after {min_rounds}+ rounds, ceiling {max_rounds})")
+    print(f"\n  Starting deliberation: {role_a} vs {role_b} (converges when both agree, safety cap: {safety_cap})")
 
-    for round_num in range(1, max_rounds + 1):
-        is_ceiling = (round_num == max_rounds)
-        eligible_to_converge = (round_num >= min_rounds)
+    round_num = 0
+
+    while round_num < safety_cap:
+        round_num += 1
         is_odd = (round_num % 2 == 1)
 
         current_role = role_a if is_odd else role_b
         current_prompt = prompt_a if is_odd else prompt_b
-        max_turns = max_turns_final if (is_ceiling or eligible_to_converge) else max_turns_per_round
+        max_turns = max_turns_per_round
 
         # ── Build turn context ───────────────────────────────
         turn_context = _build_turn_context(
@@ -166,20 +169,13 @@ async def run_deliberation(
             role_prompt=current_prompt,
             transcript=transcript,
             round_num=round_num,
-            max_rounds=max_rounds,
-            is_final=is_ceiling,
-            eligible_to_converge=eligible_to_converge,
+            is_commit=False,
         )
 
         # ── Run the turn ─────────────────────────────────────
         label = f"{session_label}:R{round_num}:{current_role}"
         print(f"\n  {'─' * 50}")
-        round_label = f"  Round {round_num}/{max_rounds}: {current_role}"
-        if is_ceiling:
-            round_label += " (CEILING — must write conclusion)"
-        elif eligible_to_converge:
-            round_label += " (convergence eligible)"
-        print(round_label)
+        print(f"  Round {round_num}: {current_role}")
         print(f"  {'─' * 50}")
 
         client = create_client(project_dir, model, role=current_role, max_turns=max_turns)
@@ -193,13 +189,44 @@ async def run_deliberation(
 
         transcript.append({"round": round_num, "role": current_role, "content": response})
 
-        # ── Check for convergence ─────────────────────────────
+        # ── Check for convergence ────────────────────────────
         if _has_conclusion_marker(response):
-            print(f"\n  Converged at round {round_num}.")
+            print(f"\n  Convergence signaled at round {round_num} by {current_role}.")
             conclusion = _extract_conclusion(response)
+            converged = True
             break
 
-    # ── Extract conclusion ────────────────────────────────────
+    # ── If safety cap hit without convergence, force a commit round ──
+    if not converged and status != "error":
+        round_num += 1
+        # Give the commit round to whichever agent is next
+        is_odd = (round_num % 2 == 1)
+        current_role = role_a if is_odd else role_b
+        current_prompt = prompt_a if is_odd else prompt_b
+
+        print(f"\n  {'─' * 50}")
+        print(f"  Round {round_num}: {current_role} (SAFETY CAP — forced commit)")
+        print(f"  {'─' * 50}")
+
+        turn_context = _build_turn_context(
+            shared_context=shared_context,
+            role_prompt=current_prompt,
+            transcript=transcript,
+            round_num=round_num,
+            is_commit=True,
+        )
+
+        client = create_client(project_dir, model, role=current_role, max_turns=max_turns_commit)
+        async with client:
+            turn_status, response = await run_session(client, turn_context, f"{session_label}:R{round_num}:COMMIT:{current_role}")
+
+        if turn_status != "error":
+            transcript.append({"round": round_num, "role": current_role, "content": response})
+            conclusion = _extract_conclusion(response)
+            if not conclusion:
+                conclusion = response
+
+    # ── Extract conclusion if not already captured ────────────
     if not conclusion and transcript:
         last_response = transcript[-1]["content"]
         conclusion = _extract_conclusion(last_response)
@@ -214,9 +241,7 @@ def _build_turn_context(
     role_prompt: str,
     transcript: list[dict],
     round_num: int,
-    max_rounds: int,
-    is_final: bool,
-    eligible_to_converge: bool = False,
+    is_commit: bool = False,
 ) -> str:
     """Assemble the full prompt for one deliberation turn."""
 
@@ -228,47 +253,43 @@ def _build_turn_context(
             parts.append(f"### Round {entry['round']} — {entry['role']}:\n\n{entry['content']}")
         history = "\n\n---\n\n".join(parts)
 
-    convergence_instructions = ""
-    if is_final:
-        convergence_instructions = """
+    commit_instructions = ""
+    if is_commit:
+        commit_instructions = """
 
 ---
 
-## CEILING REACHED — PRODUCE THE CONCLUSION NOW
+## COMMIT ROUND — SAFETY CAP REACHED
 
-This is the maximum round. You MUST conclude now:
+The deliberation has reached its safety cap without an explicit convergence signal.
+You MUST now produce the conclusion based on the current state of the discussion:
 
-1. **Synthesize the discussion** into a clear conclusion incorporating the strongest points from both sides.
+1. **Synthesize** the discussion into the best conclusion given what both sides have argued.
 2. **Mark the conclusion** by writing `CONCLUSION:` on its own line, followed by the distilled result.
-3. **Write the conclusion to disk** — commit the agreed-upon output to the appropriate files (output.md for specs, index.json + node directories for initialization).
-4. **Document any remaining disagreements** as open questions in the conclusion, not as unresolved ambiguity.
+3. **Write to disk** — commit the agreed-upon output to the appropriate files (output.md for specs, index.json + node directories for initialization).
+4. **Document any remaining disagreements** as explicit open questions — not as unresolved ambiguity.
 
 The conclusion must stand on its own without requiring the transcript.
 """
-    elif eligible_to_converge:
+
+    convergence_instructions = ""
+    if not is_commit:
         convergence_instructions = """
 
----
+## CONVERGENCE INSTRUCTIONS
 
-## CONVERGENCE CHECK
+This deliberation runs until both sides agree — there is no predetermined round limit.
 
-You have had sufficient discussion rounds. If you believe the discussion has reached a point where:
-- The key design decisions are agreed upon
-- Remaining disagreements are minor or documented as open questions
-- The conclusion is ready to be written
-
-Then **write your conclusion now**: write `CONCLUSION:` on its own line, followed by the distilled result, and **write it to disk** (output.md for specs, index.json + node directories for initialization).
-
-If substantive disagreements remain or important aspects haven't been addressed yet, continue the discussion — there are more rounds available. Don't rush to conclude if the design isn't ready.
+- **If you have no remaining critical or major objections** to the current state of the discussion, signal convergence by writing `CONCLUSION:` on its own line, followed by the agreed result. Then **write the conclusion to disk** (output.md for specs, index.json + node directories for initialization) and commit to git.
+- **If you still have substantive objections**, state them clearly. The deliberation continues.
+- Do NOT signal convergence prematurely just because several rounds have passed. Converge when the discussion has genuinely resolved, not when you're tired of talking.
 """
-    else:
-        convergence_instructions = "\n_Focus on the discussion. Convergence is not expected yet — work through the design thoroughly._\n"
 
     return f"""{shared_context}
 
 ---
 
-# DELIBERATION — ROUND {round_num} of {max_rounds}
+# DELIBERATION — ROUND {round_num}
 {convergence_instructions}
 ## Prior Discussion
 
@@ -278,7 +299,8 @@ If substantive disagreements remain or important aspects haven't been addressed 
 
 ## YOUR ROLE THIS ROUND
 
-{role_prompt}"""
+{role_prompt}
+{commit_instructions}"""
 
 
 def _has_conclusion_marker(text: str) -> bool:
@@ -412,21 +434,40 @@ async def run_integrator_session(
     return status, response
 
 
-async def run_synthesizer_session(
+async def run_synthesizer_chunk_session(
     project_dir: Path,
-    cluster_node_ids: list[str],
+    category: str,
+    node_ids: list[str],
     model: str,
     max_turns: int = 500,
 ) -> tuple[str, str]:
-    """Run a synthesizer session to assemble deliverables."""
-    from context import build_synthesizer_context
+    """Run a synthesizer CHUNK session for one deliverable category."""
+    from context import build_synthesizer_chunk_context
 
-    print_session_header("SYNTHESIZER", 0)
-    context = build_synthesizer_context(project_dir, cluster_node_ids)
+    print_session_header(f"SYNTHESIZER — CHUNK: {category} ({len(node_ids)} nodes)", 0)
+    context = build_synthesizer_chunk_context(project_dir, category, node_ids)
     client = create_client(project_dir, model, role="synthesizer", max_turns=max_turns)
 
     async with client:
-        status, response = await run_session(client, context, "synthesizer")
+        status, response = await run_session(client, context, f"synthesizer-chunk-{category}")
+
+    return status, response
+
+
+async def run_synthesizer_rollup_session(
+    project_dir: Path,
+    model: str,
+    max_turns: int = 500,
+) -> tuple[str, str]:
+    """Run a synthesizer ROLLUP session to assemble chunk specs into final doc."""
+    from context import build_synthesizer_rollup_context
+
+    print_session_header("SYNTHESIZER — ROLLUP (final assembly)", 0)
+    context = build_synthesizer_rollup_context(project_dir)
+    client = create_client(project_dir, model, role="synthesizer", max_turns=max_turns)
+
+    async with client:
+        status, response = await run_session(client, context, "synthesizer-rollup")
 
     return status, response
 

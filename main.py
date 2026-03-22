@@ -14,8 +14,7 @@ Usage:
     python main.py                                    # Run with defaults
     python main.py --project-dir ./my-depthkit        # Custom project dir
     python main.py --max-iterations 5                 # Limit iterations
-    python main.py --init-rounds 6                    # More init deliberation
-    python main.py --explore-rounds 4                 # Rounds per objective
+    python main.py --init-safety-cap 30               # Higher safety cap for init
 
 Environment Variables:
     CLAUDE_CODE_OAUTH_TOKEN   Required. Your Claude Code OAuth token.
@@ -37,8 +36,8 @@ DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 DEFAULT_PROJECT_DIR = "./depthkit"
 DEFAULT_AUTO_CONTINUE_DELAY = 3
 DEFAULT_INTEGRATOR_CADENCE = 15
-DEFAULT_INIT_ROUNDS = 6
-DEFAULT_EXPLORE_ROUNDS = 4
+DEFAULT_INIT_SAFETY_CAP = 20
+DEFAULT_EXPLORE_SAFETY_CAP = 12
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +48,6 @@ def parse_args() -> argparse.Namespace:
 Examples:
   python main.py --project-dir ./depthkit
   python main.py --project-dir ./depthkit --max-iterations 5
-  python main.py --init-rounds 8 --explore-rounds 6   # More deliberation
 
 Watch conclusions live (in another terminal):
   tail -f generations/depthkit/feed.md
@@ -66,10 +64,12 @@ Watch conclusions live (in another terminal):
         help=f"Seconds between sessions (default: {DEFAULT_AUTO_CONTINUE_DELAY})")
     parser.add_argument("--integrator-cadence", type=int, default=None,
         help=f"Integrator every N explorations (default: {DEFAULT_INTEGRATOR_CADENCE})")
-    parser.add_argument("--init-rounds", type=int, default=None,
-        help=f"Min rounds before convergence eligible for init (default: {DEFAULT_INIT_ROUNDS})")
-    parser.add_argument("--explore-rounds", type=int, default=None,
-        help=f"Min rounds before convergence eligible per objective (default: {DEFAULT_EXPLORE_ROUNDS})")
+    parser.add_argument("--init-safety-cap", type=int, default=None,
+        help=f"Max rounds for init deliberation — agents converge when they agree "
+             f"(default: {DEFAULT_INIT_SAFETY_CAP})")
+    parser.add_argument("--explore-safety-cap", type=int, default=None,
+        help=f"Max rounds per explore deliberation — agents converge when they agree "
+             f"(default: {DEFAULT_EXPLORE_SAFETY_CAP})")
 
     return parser.parse_args()
 
@@ -103,16 +103,16 @@ def resolve_config(args: argparse.Namespace) -> dict:
         or (int(cadence_env) if cadence_env else DEFAULT_INTEGRATOR_CADENCE)
     )
 
-    init_env = os.environ.get("INIT_ROUNDS")
-    config["init_rounds"] = (
-        args.init_rounds
-        or (int(init_env) if init_env else DEFAULT_INIT_ROUNDS)
+    init_env = os.environ.get("INIT_SAFETY_CAP")
+    config["init_safety_cap"] = (
+        args.init_safety_cap
+        or (int(init_env) if init_env else DEFAULT_INIT_SAFETY_CAP)
     )
 
-    explore_env = os.environ.get("EXPLORE_ROUNDS")
-    config["explore_rounds"] = (
-        args.explore_rounds
-        or (int(explore_env) if explore_env else DEFAULT_EXPLORE_ROUNDS)
+    explore_env = os.environ.get("EXPLORE_SAFETY_CAP")
+    config["explore_safety_cap"] = (
+        args.explore_safety_cap
+        or (int(explore_env) if explore_env else DEFAULT_EXPLORE_SAFETY_CAP)
     )
 
     return config
@@ -123,23 +123,19 @@ def main() -> None:
     args = parse_args()
     config = resolve_config(args)
 
-    # Check auth: either CLAUDE_CODE_OAUTH_TOKEN is set, or CLI is already authenticated
     if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        import subprocess
-        result = subprocess.run(["claude", "auth", "status"], capture_output=True, text=True)
-        if '"loggedIn": true' not in result.stdout:
-            print("Error: No authentication found.")
-            print("  Either set CLAUDE_CODE_OAUTH_TOKEN in .env")
-            print("  or run: claude auth login")
-            sys.exit(1)
+        print("Error: CLAUDE_CODE_OAUTH_TOKEN not set.")
+        print("  export CLAUDE_CODE_OAUTH_TOKEN='your-token'")
+        print("  or set it in .env")
+        sys.exit(1)
 
     print()
     print("  Configuration:")
     print(f"    Model:              {config['model']}")
     print(f"    Project dir:        {config['project_dir']}")
     print(f"    Max iterations:     {config['max_iterations'] or 'unlimited'}")
-    print(f"    Init rounds:        {config['init_rounds']}")
-    print(f"    Explore rounds:     {config['explore_rounds']}")
+    print(f"    Init safety cap:    {config['init_safety_cap']} rounds (converges when agents agree)")
+    print(f"    Explore safety cap: {config['explore_safety_cap']} rounds (converges when agents agree)")
     print(f"    Continue delay:     {config['auto_continue_delay']}s")
     print(f"    Integrator cadence: every {config['integrator_cadence']} explorations")
     print()
@@ -155,8 +151,8 @@ def main() -> None:
                 max_iterations=config["max_iterations"],
                 auto_continue_delay=config["auto_continue_delay"],
                 integrator_cadence=config["integrator_cadence"],
-                init_rounds=config["init_rounds"],
-                explore_rounds=config["explore_rounds"],
+                init_safety_cap=config["init_safety_cap"],
+                explore_safety_cap=config["explore_safety_cap"],
             )
         )
     except KeyboardInterrupt:

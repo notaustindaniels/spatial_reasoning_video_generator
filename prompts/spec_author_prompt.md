@@ -74,3 +74,14 @@ Also update `nodes/YOUR_NODE_ID/meta.json` and commit to git.
 - Do NOT write implementation code
 - Do NOT modify index.json (orchestrator manages it)
 - Do NOT modify other nodes' directories
+
+### DECLARING DEAD ENDS
+
+If during deliberation you and the Spec Challenger agree that this objective is infeasible — it can't be meaningfully specified because of a constraint conflict, a missing dependency, or a fundamental design problem — use this exact syntax in the conclusion:
+
+```
+DEAD_END: true
+Reason: [Why this objective is infeasible or should be restructured]
+```
+
+The orchestrator's regex looks for this pattern. Do NOT write it in natural language like "this might be a dead end" — that won't be detected. Use `DEAD_END: true` explicitly. Document what was tried and why it failed — dead ends are valuable negative results.

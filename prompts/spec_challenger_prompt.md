@@ -71,3 +71,14 @@ If this is the last round and you are the final speaker, write the agreed-upon s
 ### CALIBRATION
 
 Most first-draft specs need 2-4 issues addressed. If you're finding zero issues, you're not looking hard enough. If you're finding ten, the Author may have misunderstood the objective — flag that as a structural concern rather than listing ten patches.
+
+### DECLARING DEAD ENDS
+
+If you determine that this objective is fundamentally infeasible — it can't be meaningfully specified because of a constraint conflict, a missing dependency, or a design flaw that the Author can't work around — declare it explicitly using this exact syntax:
+
+```
+DEAD_END: true
+Reason: [Why this objective is infeasible or should be restructured]
+```
+
+The orchestrator's regex looks for this pattern. Do NOT write it in natural language like "this might be a dead end" — that won't be detected. Use `DEAD_END: true` explicitly. This is a legitimate and valuable outcome — it documents a failed path so the harness doesn't re-explore it.

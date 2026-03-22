@@ -209,20 +209,28 @@ def build_integrator_context(project_dir: Path, sample_node_ids: list[str]) -> s
 """
 
 
-def build_synthesizer_context(project_dir: Path, cluster_node_ids: list[str]) -> str:
-    """Build context for a synthesizer session."""
+def build_synthesizer_chunk_context(
+    project_dir: Path,
+    category: str,
+    node_ids: list[str],
+) -> str:
+    """
+    Build context for a synthesizer CHUNK session — one deliverable category.
+    Includes: seed, the specs for all nodes in this category.
+    """
     seed = load_seed(project_dir)
     prompt = load_prompt("synthesizer_prompt")
 
-    cluster_outputs = []
-    for nid in cluster_node_ids:
+    chunk_outputs = []
+    for nid in node_ids:
         meta = read_node_meta(project_dir, nid)
         output = read_node_output(project_dir, nid)
-        cluster_outputs.append(
-            f"### Node: {nid}\n**Description:** {meta.get('description', 'N/A')}\n\n{output}"
+        chunk_outputs.append(
+            f"### Node: {nid}\n**Category:** {category}\n"
+            f"**Description:** {meta.get('description', 'N/A')}\n\n{output}"
         )
 
-    cluster_str = "\n\n---\n\n".join(cluster_outputs) if cluster_outputs else "No nodes in cluster."
+    chunk_str = "\n\n---\n\n".join(chunk_outputs) if chunk_outputs else "No nodes in this category."
 
     return f"""# SEED DOCUMENT
 
@@ -230,9 +238,58 @@ def build_synthesizer_context(project_dir: Path, cluster_node_ids: list[str]) ->
 
 ---
 
-# VERIFIED NODE SPECS TO SYNTHESIZE
+# MODE: CHUNK — Category: {category}
 
-{cluster_str}
+You are consolidating the **{category}** specs into a single document.
+Write your output to `synthesis/{category}_spec.md`.
+
+---
+
+# VERIFIED NODE SPECS ({category})
+
+{chunk_str}
+
+---
+
+# YOUR INSTRUCTIONS
+
+{prompt}
+"""
+
+
+def build_synthesizer_rollup_context(project_dir: Path) -> str:
+    """
+    Build context for a synthesizer ROLLUP session — assembles chunk summaries.
+    Reads the per-category consolidated specs from synthesis/ directory.
+    """
+    seed = load_seed(project_dir)
+    prompt = load_prompt("synthesizer_prompt")
+
+    synthesis_dir = project_dir / "synthesis"
+    chunk_docs = []
+    for spec_file in sorted(synthesis_dir.glob("*_spec.md")):
+        content = spec_file.read_text()
+        category = spec_file.stem.replace("_spec", "")
+        chunk_docs.append(f"### Category: {category}\n\n{content}")
+
+    chunks_str = "\n\n---\n\n".join(chunk_docs) if chunk_docs else "No chunk specs found."
+
+    return f"""# SEED DOCUMENT
+
+{seed}
+
+---
+
+# MODE: ROLLUP — Final Assembly
+
+You are reading the per-category consolidated specs and producing the final
+deliverable document. Write your output to `synthesis/final_spec.md`.
+
+---
+
+# PER-CATEGORY CONSOLIDATED SPECS
+
+{chunks_str}
 
 ---
 

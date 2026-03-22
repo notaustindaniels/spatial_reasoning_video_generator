@@ -59,3 +59,14 @@ Evaluate Architect A's revisions. Verify that your challenges were addressed. Ra
 ### ON THE FINAL TURN
 
 If this is the last round and you are the final speaker, write the agreed-upon decomposition to disk (index.json, node directories, frontier.json, harness-progress.txt) and commit to git. If Architect A wrote it on a previous turn, verify it matches the agreed-upon state.
+
+### DECLARING DEAD ENDS
+
+If during deliberation you and Architect A agree that a proposed objective is infeasible or should be removed from the DAG entirely, use this exact syntax in the conclusion:
+
+```
+DEAD_END: true
+Reason: [Why this objective is infeasible]
+```
+
+The orchestrator's regex looks for this pattern. Do NOT write it in natural language like "I think this might be a dead end" — that won't be detected. Use `DEAD_END: true` explicitly.

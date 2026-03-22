@@ -90,6 +90,7 @@ from dag import (
     read_integrator_coverage,
     write_integrator_coverage,
     read_node_meta,
+    cluster_verified_by_category,
     STATUS_OPEN,
     STATUS_IN_PROGRESS,
     STATUS_REVIEW,
@@ -101,7 +102,8 @@ from dag import (
 from agent import (
     run_deliberation,
     run_integrator_session,
-    run_synthesizer_session,
+    run_synthesizer_chunk_session,
+    run_synthesizer_rollup_session,
     run_manifest_session,
     write_session_log,
     append_to_feed,
@@ -126,8 +128,8 @@ async def run_harness(
     max_iterations: Optional[int] = None,
     auto_continue_delay: int = 3,
     integrator_cadence: int = 15,
-    init_rounds: int = 6,
-    explore_rounds: int = 4,
+    init_safety_cap: int = 20,
+    explore_safety_cap: int = 12,
 ) -> None:
     """
     Run the full harness lifecycle.
@@ -138,8 +140,8 @@ async def run_harness(
         max_iterations: Max explorer iterations (None = unlimited).
         auto_continue_delay: Seconds between sessions.
         integrator_cadence: Run integrator every N explorer completions.
-        init_rounds: Deliberation rounds for initialization.
-        explore_rounds: Deliberation rounds per objective.
+        init_safety_cap: Max rounds for init deliberation (converges when agents agree).
+        explore_safety_cap: Max rounds per explore deliberation (converges when agents agree).
     """
     print("\n" + "=" * 70)
     print("  DEPTHKIT MULTI-AGENT HARNESS (Deliberation Mode)")
@@ -147,8 +149,8 @@ async def run_harness(
     print(f"\n  Project directory: {project_dir}")
     print(f"  Model: {model}")
     print(f"  Max iterations: {max_iterations or 'Unlimited'}")
-    print(f"  Init deliberation rounds: {init_rounds}")
-    print(f"  Explore deliberation rounds: {explore_rounds}")
+    print(f"  Init deliberation: converges when agreed (safety cap: {init_safety_cap})")
+    print(f"  Explore deliberation: converges when agreed (safety cap: {explore_safety_cap})")
     print(f"  Integrator cadence: every {integrator_cadence} explorations")
     print(f"\n  Watch conclusions live:")
     print(f"    tail -f {project_dir}/feed.md")
@@ -180,10 +182,9 @@ async def run_harness(
             shared_context=shared_context,
             prompt_a=prompt_a,
             prompt_b=prompt_b,
-            min_rounds=init_rounds,
-            max_rounds=init_rounds * 4,  # Safety ceiling
+            safety_cap=init_safety_cap,
             max_turns_per_round=300,
-            max_turns_final=1000,  # Conclusion round creates filesystem
+            max_turns_commit=1000,
             session_label="init-delib",
         )
 
@@ -282,10 +283,9 @@ async def run_harness(
             shared_context=shared_context,
             prompt_a=prompt_author,
             prompt_b=prompt_challenger,
-            min_rounds=explore_rounds,
-            max_rounds=explore_rounds * 4,  # Safety ceiling
+            safety_cap=explore_safety_cap,
             max_turns_per_round=200,
-            max_turns_final=500,
+            max_turns_commit=500,
             session_label=f"explore-{node_id}",
         )
 
@@ -348,9 +348,16 @@ async def run_harness(
         print_progress(project_dir)
         _git_push(project_dir)
 
-        # ── Periodic Integrator ──────────────────────────────
-        if explorer_count % integrator_cadence == 0 and explorer_count > 0:
-            print(f"\n  Integrator cadence reached ({explorer_count} explorations).")
+        # ── Periodic Integrator (adaptive cadence) ────────────
+        # Tighter early (every 5) to catch foundational drift,
+        # relaxes to integrator_cadence once 25% of nodes are verified.
+        total_nodes = summary["total"] if summary["total"] > 0 else 1
+        verified_pct = summary["verified"] / total_nodes
+        effective_cadence = integrator_cadence if verified_pct >= 0.25 else min(5, integrator_cadence)
+
+        if explorer_count % effective_cadence == 0 and explorer_count > 0:
+            print(f"\n  Integrator cadence reached ({explorer_count} explorations, "
+                  f"cadence={effective_cadence}, {verified_pct:.0%} verified).")
             await _run_integrator(project_dir, model)
 
         await asyncio.sleep(auto_continue_delay)
@@ -376,27 +383,57 @@ async def run_harness(
         else:
             print("  spec_manifest.md created.")
 
-        # Step 2: Run synthesizer for consolidated deliverable docs (optional)
-        index = read_index(project_dir)
-        verified_ids = [
-            nid for nid, n in index.get("nodes", {}).items()
-            if n["status"] == STATUS_VERIFIED
-        ]
+        # Step 2: Map-Reduce Synthesis by category
+        # Chunk pass: one synthesizer session per category
+        # Rollup pass: one session that reads chunk outputs and produces final doc
+        clusters = cluster_verified_by_category(project_dir)
 
-        if verified_ids:
-            print(f"\n  Running synthesizer across {len(verified_ids)} verified nodes...")
-            syn_status, syn_response = await run_synthesizer_session(
-                project_dir, verified_ids, model
-            )
-            write_session_log(
-                project_dir, "syn-final", "synthesizer",
-                None, syn_status,
-                f"Final synthesis across {len(verified_ids)} verified nodes."
-            )
-            if syn_status == "error":
-                print("  Synthesizer session failed. Outputs may need manual assembly.")
+        if clusters:
+            print(f"\n  Synthesis plan (map-reduce):")
+            for cat, ids in clusters.items():
+                print(f"    {cat}: {len(ids)} nodes")
+
+            # ── Map: per-category chunk passes ────────────────
+            chunk_failures = []
+            for cat, ids in clusters.items():
+                print(f"\n  Synthesizing {cat} ({len(ids)} nodes)...")
+                chunk_status, chunk_response = await run_synthesizer_chunk_session(
+                    project_dir, cat, ids, model
+                )
+                write_session_log(
+                    project_dir, f"syn-chunk-{cat}", "synthesizer",
+                    None, chunk_status,
+                    f"Chunk synthesis for {cat}: {len(ids)} nodes."
+                )
+                if chunk_status == "error":
+                    print(f"  Chunk synthesis failed for {cat}.")
+                    chunk_failures.append(cat)
+                else:
+                    print(f"  {cat}_spec.md created.")
+
+            # ── Reduce: rollup pass ───────────────────────────
+            if chunk_failures:
+                print(f"\n  {len(chunk_failures)} chunk(s) failed: {', '.join(chunk_failures)}")
+                print(f"  Rollup will proceed with available chunks.")
+
+            synthesis_dir = project_dir / "synthesis"
+            chunk_files = list(synthesis_dir.glob("*_spec.md"))
+            if chunk_files:
+                print(f"\n  Rolling up {len(chunk_files)} chunk specs into final_spec.md...")
+                rollup_status, rollup_response = await run_synthesizer_rollup_session(
+                    project_dir, model
+                )
+                write_session_log(
+                    project_dir, "syn-rollup", "synthesizer",
+                    None, rollup_status,
+                    f"Rollup synthesis across {len(chunk_files)} category chunks."
+                )
+                if rollup_status == "error":
+                    print("  Rollup failed. Per-category specs are still available in synthesis/.")
+                else:
+                    print("  final_spec.md created. Synthesis complete.")
             else:
-                print("  Synthesis complete.")
+                print("  No chunk specs produced. Skipping rollup.")
 
         _git_push(project_dir)
 
@@ -464,14 +501,48 @@ def _git_push(project_dir: Path) -> None:
 
 
 def _check_for_dead_end(text: str) -> bool:
-    """Check if the conclusion indicates a dead end."""
+    """Check if the conclusion indicates a dead end.
+
+    Catches:
+    - Explicit markers: DEAD_END: true, DEAD_END: yes
+    - Verdict style: VERDICT: dead_end
+    - Natural language: "this path is a dead end", "this objective is infeasible"
+    - Conclusion style: "CONCLUSION: DEAD END" or "CONCLUSION: This is a dead end"
+    """
     cleaned = re.sub(r'\*+', '', text)
     cleaned = re.sub(r'`+', '', cleaned)
     cleaned = re.sub(r'#+\s*', '', cleaned)
 
-    if re.search(r'(?:dead[_\s-]?end|infeasible|unachievable)\s*[:—\-]\s*(?:true|yes)', cleaned, re.IGNORECASE):
+    # Explicit flag: DEAD_END: true/yes
+    if re.search(
+        r'(?:dead[_\s-]?end|infeasible|unachievable)\s*[:—\-]\s*(?:true|yes)',
+        cleaned, re.IGNORECASE,
+    ):
         return True
-    return bool(re.search(r'verdict\s*[:—\-]\s*dead[_\s-]?end', cleaned, re.IGNORECASE))
+
+    # Verdict style: VERDICT: dead_end
+    if re.search(
+        r'verdict\s*[:—\-]\s*dead[_\s-]?end',
+        cleaned, re.IGNORECASE,
+    ):
+        return True
+
+    # Natural language in conclusion marker: "CONCLUSION: DEAD END ..." or
+    # "CONCLUSION: This objective is a dead end / infeasible / unachievable"
+    if re.search(
+        r'conclusion\s*[:—\-]\s*(?:dead[_\s-]?end|.*?\b(?:dead\s+end|infeasible|unachievable)\b)',
+        cleaned, re.IGNORECASE,
+    ):
+        return True
+
+    # Standalone sentence patterns: "this is a dead end" / "this path is infeasible"
+    if re.search(
+        r'this\s+(?:path|objective|approach|direction)\s+is\s+(?:a\s+)?(?:dead[_\s-]?end|infeasible|unachievable|not\s+viable)',
+        cleaned, re.IGNORECASE,
+    ):
+        return True
+
+    return False
 
 
 async def _run_integrator(project_dir: Path, model: str) -> None:
