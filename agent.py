@@ -77,6 +77,13 @@ async def run_session(
                         response_text += block.text
                         print(block.text, end="", flush=True)
                     elif block_type == "ToolUseBlock" and hasattr(block, "name"):
+                        tool_line = f"\n[Tool: {block.name}]\n"
+                        if hasattr(block, "input"):
+                            input_repr = json.dumps(block.input, indent=2) if isinstance(block.input, (dict, list)) else str(block.input)
+                            if len(input_repr) > 2000:
+                                input_repr = input_repr[:2000] + "\n... [truncated]"
+                            tool_line += f"  Input: {input_repr}\n"
+                        response_text += tool_line
                         print(f"\n  [Tool: {block.name}]", flush=True)
                         if hasattr(block, "input"):
                             input_str = str(block.input)
@@ -87,11 +94,18 @@ async def run_session(
                     if type(block).__name__ == "ToolResultBlock":
                         result_content = getattr(block, "content", "")
                         is_error = getattr(block, "is_error", False)
-                        if "blocked" in str(result_content).lower():
+                        result_str = str(result_content)
+                        if "blocked" in result_str.lower():
+                            response_text += f"[Tool BLOCKED] {result_str[:500]}\n"
                             print(f"    [BLOCKED] {result_content}", flush=True)
                         elif is_error:
-                            print(f"    [Error] {str(result_content)[:500]}", flush=True)
+                            response_text += f"[Tool Error] {result_str[:500]}\n"
+                            print(f"    [Error] {result_str[:500]}", flush=True)
                         else:
+                            if len(result_str) > 1000:
+                                response_text += f"[Tool Result] {result_str[:1000]}... [truncated]\n"
+                            else:
+                                response_text += f"[Tool Result] {result_str}\n"
                             print("    [Done]", flush=True)
 
             elif msg_type == "ResultMessage":
