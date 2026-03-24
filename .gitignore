@@ -9,7 +9,7 @@ __pycache__/
 venv/
 
 # Agent-generated output
-generations/
+# generations/
 
 # Logs
 logs/
