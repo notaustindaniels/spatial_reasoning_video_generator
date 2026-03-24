@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-042",
+  "description": "Fog and atmosphere system -- Three.js fog configuration per geometry (fog color, near distance, far distance), depth-based fading to hide hard edges on distant planes and create atmospheric perspective, per-scene fog overrides in the manifest. Per Section 8.10.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-010"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 spatial feature. Medium priority -- enhances visual quality but not required for basic rendering."
+}

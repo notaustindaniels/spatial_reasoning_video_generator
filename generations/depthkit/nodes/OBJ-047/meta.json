@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-047",
+  "description": "Library API -- importable programmatic interface for depthkit. render(manifest) function signature, event hooks (onFrameRendered, onSceneStart, onSceneEnd, onComplete, onError), progress callbacks with frame count and percentage, and configuration options (output path, resolution overrides). Enables programmatic use from n8n HTTP endpoint and other Node.js consumers.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "status": "specified",
+  "review_status": "approved",
+  "notes": "Tier 4 interface. Spec approved after 4-round deliberation. Wraps Orchestrator with ergonomic render()/renderFile() functions, event hooks derived from activeSceneIds tracking, resolution/fps overrides, module-level registry caching. Relocates initRegistries() from src/cli/registry-init.ts to shared src/registry.ts."
+}

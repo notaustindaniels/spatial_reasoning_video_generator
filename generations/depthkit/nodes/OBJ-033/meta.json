@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-033",
+  "description": "Crane up camera path preset -- camera rises on Y-axis while keeping the lookAt target steady. Reveals vertical space. Defines position(t) with Y-axis rise, lookAt(t) targeting scene center, easing defaults, compatible geometries (canyon, stage), and oversizing requirements (vertical oversizing needed).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Medium priority. Currently a leaf node."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-017",
+  "description": "Geometry-specific structural manifest validation -- per-geometry Zod refinements ensuring plane keys in the manifest match the geometry's expected slot requirements (e.g., tunnel requires floor, left_wall, right_wall, end_wall). Enforces required vs optional slots, validates geometry name existence. Structural validation only -- spatial compatibility rules (camera+geometry compatibility) come from OBJ-041 and are additive. Covers TC-07.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-004", "OBJ-005"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Boundary clarification: OBJ-017 = structural correctness, OBJ-041 = spatial correctness. Spec completed via 4-round deliberation. Key decisions: minimal ValidatableGeometry interface (D-09) avoids type mismatch between OBJ-004 ManifestRegistry and OBJ-005 GeometryRegistry; function injection (D-02) for testability; early exit on unknown geometry (D-03); deterministic alphabetical error ordering (D-11). Authoritative source for UNKNOWN_GEOMETRY, MISSING_REQUIRED_SLOT, UNKNOWN_SLOT error codes."
+}

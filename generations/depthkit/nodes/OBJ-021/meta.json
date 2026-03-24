@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-021",
+  "description": "Flyover scene geometry -- large ground plane below (rotation [-PI/2,0,0]), sky plane above, optional landmark planes rising from the ground. Camera moves forward and slightly downward-looking. Aerial/bird's-eye perspective feel. Defines slot positions, rotations, sizes, required/optional flags, compatible cameras, default camera, and fog settings per Section 4.2.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-007"],
+  "status": "specified",
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 geometry. 6 slots (sky, ground, landmark_far, landmark_left, landmark_right, near_fg). 2 required (sky, ground). Default camera: slow_push_forward (verified). flyover_glide listed as forward reference. Light atmospheric fog #b8c6d4. Landscape preferred."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-016",
+  "description": "Manifest loader and validator -- JSON parsing, Zod schema validation execution, error collection with actionable messages (file paths, field names, expected vs actual values), fail-fast behavior per C-10 (invalid manifests never produce partial output). Reports all validation errors at once rather than one-at-a-time.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-004"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Applies the schema from OBJ-004 to actual manifest files. Covers TC-07 (validation catches errors). Spec complete: two-phase validation (structural Zod + semantic registry), all-at-once error collection, FILE_READ_ERROR code for non-ENOENT fs errors, skip-on-unknown pattern, floating-point tolerances for overlap/audio checks."
+}

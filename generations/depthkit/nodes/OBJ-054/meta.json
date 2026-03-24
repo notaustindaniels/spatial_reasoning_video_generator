@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-054",
+  "description": "Semantic caching middleware logic -- embed prompt (via text embedding model), query Supabase AssetLibrary filtered by slot_type, apply threshold gate (cosine similarity > 0.92 = cache hit, skip generation; <= 0.92 = cache miss, generate and cache). Cache hit: return image_url, increment usage_count. Cache miss: call Flux.1 API, apply background removal if needed, upload to R2, INSERT into AssetLibrary. Covers TC-17 (threshold acceptable), TC-18 (slot-type filtering prevents contamination), TC-19 (hit rates 30-60%), TC-20 (query latency negligible).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-053", "OBJ-051"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority."
+}

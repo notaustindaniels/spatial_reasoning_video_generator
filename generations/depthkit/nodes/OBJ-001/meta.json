@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-001",
+  "description": "Project scaffolding and build system -- package.json, tsconfig, directory layout per Section 4.5, dependency list satisfying C-01 (zero-license). Establishes the Node.js project container with Three.js, Puppeteer, FFmpeg, Zod, and Commander as allowed dependencies.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T23:45:00Z",
+  "depends_on": [],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 0 foundation. No dependencies. Covers C-01. Spec completed via 4-round deliberation.",
+  "spec_status": "complete"
+}

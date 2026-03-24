@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-037",
+  "description": "Transition renderer -- implements crossfade, dip_to_black, and cut transitions by rendering overlapping scenes with animated opacity per Section 8.8. During overlap windows, both scenes' Three.js scene graphs render in sequence to the same canvas with complementary opacity. Addresses TC-10 (transitions mask compositing seams).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-036", "OBJ-008"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 engine integration."
+}

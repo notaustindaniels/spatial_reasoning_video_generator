@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-050",
+  "description": "Docker containerization -- Dockerfile with Chromium + FFmpeg dependencies, software WebGL (SwiftShader) in container, Docker layer optimization for image size, health checks. Validates TC-11 (engine runs in Docker with software WebGL). Must meet C-08 performance target in containerized environment.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-046", "OBJ-049"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Covers TC-11."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-083",
+  "description": "Parallel rendering exploration -- multi-instance frame splitting across multiple Puppeteer instances, each rendering a chunk of frames to a separate FFmpeg process, then concatenating the chunks. Could reduce a 15-minute render to under 4 minutes with 4 parallel instances. Addresses OQ-10. Low priority -- single-instance rendering may be sufficient for V1.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-035", "OBJ-013"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 exploration. Low priority. Addresses OQ-10."
+}

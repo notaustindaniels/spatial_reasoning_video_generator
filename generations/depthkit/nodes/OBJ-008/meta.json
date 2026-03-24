@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-008",
+  "description": "Transition type contract -- named transition preset definitions (cut, crossfade, dip_to_black), duration parameters, and overlap semantics per Section 8.8. Specifies how transition duration creates an overlap window where both scenes render simultaneously with animated opacity. Defines the transition interface that the scene sequencer (OBJ-036) and transition renderer (OBJ-037) implement.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-002"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 1 contract. Depends on easing utilities (OBJ-002) for opacity interpolation. Spec defines three transition presets (cut, crossfade, dip_to_black), explicit computation contracts for opacity per frame, resolveTransition for seconds-to-frames conversion, and computeTransitionOpacity for per-frame opacity pairs. Pure/isomorphic module under src/transitions/.",
+  "status": "specified",
+  "review_status": "approved"
+}

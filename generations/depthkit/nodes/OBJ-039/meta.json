@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-039",
+  "description": "Three.js page-side geometry instantiation -- how geometry definitions are loaded and instantiated in the browser page, mesh creation from PlaneSlot definitions (position, rotation, size), texture application to meshBasicMaterial, and scene graph construction. Responds to scene setup commands from the message protocol (OBJ-011).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:15:00Z",
+  "depends_on": ["OBJ-010", "OBJ-005", "OBJ-015", "OBJ-011"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 engine integration. Added OBJ-011 dep per Round 4 Issue B -- needs message protocol for scene setup commands. Spec deliberated in 4 rounds, 6 issues raised and resolved: MAX_TEXTURE_SIZE validation per OBJ-011 contract, OBJ-015 API deviation documented, naturalWidth/ImageBitmap fallback chain, test access pattern clarified, material color AC added, Euler order documented.",
+  "status": "specified",
+  "review_status": "approved"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-014",
+  "description": "FFmpeg audio muxing -- audio track integration (WAV and MP3 input), synchronization strategy, single-pass vs two-pass encoding decision (mux audio in the same FFmpeg invocation as video frames, or in a separate remux pass). Covers C-07 (audio synchronization) at the encoding level.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:30:00Z",
+  "depends_on": ["OBJ-013"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Two-pass remux approach: OBJ-013 produces video-only MP4, this module muxes audio via separate FFmpeg invocation with -c:v copy. Adds ffprobe-static as a dependency. Supports WAV (re-encoded to AAC) and MP3 (stream-copied when volume=1.0). Four duration strategies: match_shortest, match_audio (default), match_video, error.",
+  "status": "specified",
+  "review_status": "approved"
+}

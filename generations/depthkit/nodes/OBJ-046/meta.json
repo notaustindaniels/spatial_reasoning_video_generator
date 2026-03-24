@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-046",
+  "description": "CLI interface -- Commander-based CLI with render, validate, and preview commands. Argument parsing for manifest path, output path, resolution overrides, fps overrides, verbose/debug mode. Output options (progress reporting, timing stats). Entry point at src/cli.ts.",
+  "category": "engine",
+  "created_by_session": "spec_deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 interface. Spec complete. Three commands: render, validate, preview (stub). Uses Commander with exitOverride for testability. Registry population centralized in src/cli/registry-init.ts (synchronous, static imports). Short flags: -W for width, -H for height (avoiding -h conflict with --help). Progress on stderr, results on stdout. SIGINT two-stage: graceful then force-kill."
+}

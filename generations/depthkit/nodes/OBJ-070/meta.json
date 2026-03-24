@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-070",
+  "description": "SKILL.md structure and core content -- manifest authoring guide with a complete, annotated example using stage geometry and slow_push_forward camera path. Document architecture (primary file with modular sub-files for geometry reference, camera reference, prompt templates). Per SC-04 (SKILL.md is self-sufficient for an LLM to produce valid manifests). Per Section 4.9.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-004", "OBJ-046", "OBJ-018", "OBJ-027"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 5 integration. High priority. Depends on stage geometry + push/pull cameras for the core annotated example. Spec complete after 4-round deliberation.",
+  "status": "specified",
+  "review_status": "approved"
+}

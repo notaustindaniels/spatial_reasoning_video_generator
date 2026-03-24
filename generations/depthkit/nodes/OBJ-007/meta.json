@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-007",
+  "description": "Depth model specification -- semantic slot taxonomy (sky, back_wall, midground, subject, near_fg), default Z-positions per Section 4.1, rules for per-geometry slot overrides (tunnel uses floor/ceiling/walls instead of the default taxonomy), and the position_override escape hatch in the manifest for edge cases per AP-08 (do not hard-code the depth model).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T01:30:00Z",
+  "depends_on": ["OBJ-003"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 1 contract. Defines the semantic mapping from slot names to 3D positions that all geometries implement. Spec defines: DepthSlot/SlotSet types, DEFAULT_SLOT_TAXONOMY (5 slots), PlaneOverride partial-merge escape hatch, validatePlaneSlots and resolveSlotTransform functions. Geometry registry deferred to OBJ-005; manifest plane types deferred to OBJ-010.",
+  "review_status": "approved"
+}

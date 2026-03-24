@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-056",
+  "description": "Manifest generation via Claude API -- prompt design for generating structured manifest JSON from a topic and duration. Schema conformance (output must pass Zod validation from OBJ-004). Geometry and camera selection logic (mapping topic semantics to appropriate scene geometries and camera paths). Uses SKILL.md geometry reference (OBJ-071) as the knowledge base for the generation prompt.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-004", "OBJ-071"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Split from original OBJ-055. Dep corrected from OBJ-069 to OBJ-071 per Round 4 Issue A."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-052",
+  "description": "Background removal integration -- rembg as Python subprocess from Node.js, chroma key alternative via Sharp, per-slot-type strategy (apply removal to subject and near_fg only; far_bg and mid_bg don't need it). Addresses OQ-02 (best strategy for images without alpha) and TC-12 (rembg viable as subprocess -- under 5 seconds per image, acceptable mask quality).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-015"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Covers TC-12. Part of asset pipeline, not rendering engine (per AP-04)."
+}

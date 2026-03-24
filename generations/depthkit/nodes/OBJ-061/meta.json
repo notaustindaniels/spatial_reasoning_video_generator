@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-061",
+  "description": "Tune canyon geometry with default camera paths (static, slow_push_forward/pull_back, gentle_float). Produce test renders, submit to Director Agent, iterate through HITL. Mark visual_status as tuned when human signs off.",
+  "category": "tuning",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-020", "OBJ-026", "OBJ-027", "OBJ-031", "OBJ-035", "OBJ-058"],
+  "visual_status": "needs_tuning",
+  "tuning_rounds": 0,
+  "notes": "Tier 5 tuning."
+}

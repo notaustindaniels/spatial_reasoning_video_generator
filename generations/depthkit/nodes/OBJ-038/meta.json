@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-038",
+  "description": "Audio sync and scene timing -- duration distribution algorithm per Section 8.7: audio-driven (T = audio_duration, scenes share proportionally), explicit (T = sum of scene durations + transition overlaps), or combined (explicit durations with audio mismatch warning). Timestamp-based scene boundary alignment to narration cues. Covers C-07 (audio synchronization) and TC-13 (audio duration drives total video length).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:15:00.000000+00:00",
+  "depends_on": ["OBJ-009", "OBJ-014", "OBJ-016"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "status": "specified",
+  "review_status": "approved",
+  "notes": "Tier 3 engine integration. Spec defines scene-timing.ts with three timing modes (explicit, audio_proportional, audio_cue), frame-level scene resolution via FrameClock, and per-frame lookup with unified dip_to_black opacity formula. 50 acceptance criteria, 22 design decisions."
+}

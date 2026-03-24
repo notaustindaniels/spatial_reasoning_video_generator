@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-051",
+  "description": "Image generation strategy -- Flux.1 Schnell prompt engineering per slot type per Section 4.7. Perspective-aware prompting for floor/wall/ceiling textures (e.g., tunnel floor needs a perspective-correct ground texture). Prompt templates with {theme} placeholder for all slot types across verified geometries. Guidelines for transparency requests. Cache category normalization for semantic caching (OBJ-054).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T00:00:00Z",
+  "depends_on": ["OBJ-007"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Informs SKILL.md prompt templates (OBJ-072) and semantic caching (OBJ-054). Spec defines SlotPromptGuidance type, SLOT_PROMPT_REGISTRY with two-level resolution (geometry-specific -> default fallback), perspective-aware prompting rules (P1-P4), transparency guidelines (T1-T3), and cache category normalization. Full reference implementations for default taxonomy (5 slots) and tunnel geometry (5 slots). Content requirements tables for stage, canyon, flyover.",
+  "status": "specified"
+}

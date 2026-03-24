@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-073",
+  "description": "Deterministic output verification plan -- procedure for comparing frame checksums across multiple render runs on the same hardware to verify C-05 (deterministic output). Covers seeding strategy for any randomized elements. Addresses TC-06 (virtualized clock produces deterministic output -- render same composition 3 times, compare checksums).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T00:00:00Z",
+  "depends_on": ["OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 validation plan. Covers C-05 and TC-06. Delivers src/engine/determinism.ts module with verifyDeterminism(), extractFrameMd5s(), compareFrameMd5s(), computePerFramePsnr(), DeterministicRng. CLI sub-command deferred to OBJ-083. Uses post-hoc framemd5 comparison (no Orchestrator modification). Pass criteria: byte-identical MD5s expected; PSNR >= 60dB fallback acceptable.",
+  "status": "complete"
+}

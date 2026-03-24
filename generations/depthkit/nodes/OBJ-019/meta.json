@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-019",
+  "description": "Tunnel scene geometry -- floor (rotation [-PI/2,0,0]), ceiling (rotation [PI/2,0,0]), left wall (rotation [0,PI/2,0]), right wall (rotation [0,-PI/2,0]), and end wall at deep Z. Camera pushes forward on Z-axis; walls undergo real perspective distortion receding to vanishing point. Per Sections 4.2 and 8.4. Addresses TC-05 (tunnel produces convincing depth).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-007"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 geometry. The signature 2.5D effect -- walls receding to vanishing point. Spec complete: 5 slots (floor, ceiling, left_wall, right_wall, end_wall), 8x6 cross-section, fog black near=15 far=50, companion tunnelSlotGuidance export for prompt metadata. Ceiling optional. Camera Z <= 5 constraint for compatible paths.",
+  "status": "specified",
+  "review_status": "approved"
+}

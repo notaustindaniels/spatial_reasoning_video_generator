@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-045",
+  "description": "Portrait/vertical adaptation -- how scene geometries adapt to 9:16 (1080x1920) aspect ratio. FOV adjustments, plane resizing strategy (taller walls, narrower floors for tunnel in portrait), whether geometries need parallel variants or can auto-adapt based on composition aspect ratio. Addresses OQ-04 and C-04 (must support 1080x1920).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-006", "OBJ-004"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 spatial feature. Medium priority. Addresses OQ-04."
+}

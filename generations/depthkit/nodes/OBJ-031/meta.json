@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-031",
+  "description": "Gentle float camera path preset -- very slow, subtle movement in all three axes. Almost subliminal. Good for ambient scenes. Defines position(t), lookAt(t) with small-amplitude multi-axis drift, easing defaults, compatible geometries (most geometries), and oversizing requirements (minimal due to small motion range).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Universal ambient preset -- compatible with most geometries. Spec complete: incommensurate sinusoidal oscillations with fade envelopes, speed scales position only, easing modulates position envelope only, lookAt drift independent of all author params.",
+  "status": "specified",
+  "review_status": "approved"
+}

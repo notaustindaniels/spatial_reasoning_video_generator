@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-012",
+  "description": "Frame capture pipeline -- FrameCapture class providing CDP Page.captureScreenshot (viewport-png) and canvas.toDataURL (canvas-png) strategies for extracting rendered frames as PNG buffers. Sits between OBJ-011 renderFrame and OBJ-013 FFmpeg encoder. Includes CDPSession management, PNG buffer validation, and capture statistics. Implements the browser-side capture half of C-02.",
+  "category": "engine",
+  "created_by_session": "spec-deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-011"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Delivers FrameCapture class (src/engine/frame-capture.ts). Two strategies: viewport-png (production default, captures HUD layers via CDP) and canvas-png (canvas-only, requires preserveDrawingBuffer). canvas-rgba deferred to OQ-A per AP-05. Depends on OBJ-009 bridge.page for CDPSession, OBJ-010 canvas ID (#depthkit-canvas) and preserveDrawingBuffer default, OBJ-011 for frame rendering sequencing."
+}

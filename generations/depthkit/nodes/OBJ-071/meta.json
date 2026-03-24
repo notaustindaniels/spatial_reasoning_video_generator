@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-071",
+  "description": "SKILL.md geometry and camera reference sections -- per-geometry documentation (description, slots, when to use, visual effect), per-camera-path documentation (description, motion type, compatible geometries, when to use). At minimum covers stage and tunnel geometries in detail. Per Section 4.9.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:15:00Z",
+  "depends_on": ["OBJ-070", "OBJ-005", "OBJ-006", "OBJ-018", "OBJ-019"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "status": "specified",
+  "review_status": "approved",
+  "notes": "Tier 5 integration. High priority. OBJ-056 (manifest generation via Claude API) depends on this. Spec covers full sections for tunnel/canyon/flyover geometries and lateral_track/tunnel_push_forward/flyover_glide cameras. Stubs for unverified geometries and cameras. Includes D9 compatibility resolution rule for lateral_track/canyon asymmetry."
+}

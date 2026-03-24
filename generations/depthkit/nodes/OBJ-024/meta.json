@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-024",
+  "description": "Panorama scene geometry -- very wide backdrop plane (or curved set of planes approximating a cylinder). Camera rotates (pans) rather than translates. No foreground elements. Pure environment. Defines slot positions, rotations, sizes, required/optional flags, compatible cameras, default camera, and fog settings per Section 4.2.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-007"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 geometry. Medium priority."
+}

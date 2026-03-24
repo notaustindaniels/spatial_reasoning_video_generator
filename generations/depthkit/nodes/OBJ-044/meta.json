@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-044",
+  "description": "Per-frame plane opacity animation -- manifest schema extension to support per-plane opacity keyframes, meshBasicMaterial transparent mode handling, use cases (foreground fog fading in/out, subject materializing). Addresses OQ-01 (should planes support per-frame opacity animation).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-004", "OBJ-010"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 spatial feature. Medium priority. Addresses OQ-01."
+}

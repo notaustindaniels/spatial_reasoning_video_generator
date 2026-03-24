@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-057",
+  "description": "Asset orchestration pipeline -- coordinates TTS call (Chatterbox TTS for narration audio), image retrieval with semantic caching (OBJ-054), background removal routing (OBJ-052), and assembly of all manifest inputs (images, audio, manifest JSON) into the structure depthkit expects. This is the glue between manifest generation, asset generation, and rendering. Per Appendix A steps 2-4.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-054", "OBJ-052", "OBJ-055", "OBJ-056"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Split from original OBJ-055. The full pipeline orchestrator."
+}

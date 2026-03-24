@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-006",
+  "description": "Camera path type contract -- TypeScript interface for camera path presets. Defines CameraPathPreset with evaluate(t, params) => CameraFrameState, CameraParams (speed/easing/offset), OversizeRequirements, CameraPathRegistry with lookup functions, resolveCameraParams() helper, toCameraState() bridge to OBJ-003 CameraState, and validateCameraPathPreset/validateCameraParams validation utilities. Per Section 4.3.",
+  "category": "spatial",
+  "created_by_session": "spec_deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T01:30:00Z",
+  "depends_on": ["OBJ-002", "OBJ-003"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 1 contract. Speed scales spatial amplitude (not temporal rate). Offset applied outside evaluate() by renderer. CameraFrameState is path-controlled subset of OBJ-003 CameraState. Registry parameterized for testability. Isomorphic module (Node.js + browser). 36 acceptance criteria. Provisional geometry names from seed Section 4.2 until OBJ-005 finalizes."
+}

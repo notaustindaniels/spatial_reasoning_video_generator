@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-067",
+  "description": "Cross-geometry camera path validation -- shared camera paths (static, gentle_float) tested across all compatible geometries to ensure consistent behavior. Includes eased vs linear interpolation comparison per TC-09 (eased paths feel more natural than linear). Requires all 8 individual geometry tuning objectives to be complete first.",
+  "category": "tuning",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-059", "OBJ-060", "OBJ-061", "OBJ-062", "OBJ-063", "OBJ-064", "OBJ-065", "OBJ-066"],
+  "visual_status": "needs_tuning",
+  "tuning_rounds": 0,
+  "notes": "Tier 5 tuning. Covers TC-09. Depends on all individual geometry tuning objectives."
+}

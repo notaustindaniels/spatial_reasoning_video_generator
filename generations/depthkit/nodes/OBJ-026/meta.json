@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-026",
+  "description": "Static camera path preset -- fixed position and orientation, no movement. Defines start/end position (identical), lookAt target, FOV (no animation), compatible geometries (all), and oversizing requirements (minimal -- no camera motion means no edge reveal risk).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Simplest preset -- baseline for all geometries. Spec approved after deliberation.",
+  "status": "specified",
+  "review_status": "approved"
+}

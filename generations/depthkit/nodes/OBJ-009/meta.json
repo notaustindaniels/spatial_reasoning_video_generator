@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-009",
+  "description": "Virtualized clock -- global frame-to-timestamp mapping (t = frame / fps), frame counter mechanics, deterministic frame stepping guarantee per C-03. Pure utility with no scene awareness. The clock provides the global frame number and timestamp; per-scene normalized time computation is handled by the scene sequencer (OBJ-036). Also delivers the PuppeteerBridge -- Puppeteer lifecycle manager for launching headless Chromium, loading the page shell, providing evaluate() primitive for downstream protocols, and capturing rendered frames as PNG buffers.",
+  "category": "engine",
+  "created_by_session": "spec-deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-001"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "review_status": "approved",
+  "notes": "Spec approved after 4-round deliberation. Two modules: FrameClock (pure stateless frame-to-timestamp mapping) and PuppeteerBridge (Puppeteer lifecycle, page loading via file://, evaluate() primitive, PNG capture via page.screenshot()). Key decisions: PNG-only capture (raw deferred per AP-05), --allow-file-access-from-files for texture CORS, ESM-compatible pagePath resolution via fileURLToPath, strict integer viewport validation, uncaught page error surfacing via pageerror listener. Binding constraint for OBJ-015: texture paths must be absolute file:// URLs or data URIs."
+}

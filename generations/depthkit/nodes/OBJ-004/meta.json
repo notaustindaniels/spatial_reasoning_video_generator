@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-004",
+  "description": "Manifest schema core -- Zod schema for the top-level manifest structure: composition settings (width, height, fps, audio), scenes array (id, duration, start_time, geometry, camera, camera_params, transition_in, transition_out, planes), and global metadata per Section 4.6. Covers C-04 (resolution/fps support for 1920x1080, 1080x1920, 24fps, 30fps) and C-10 (validation before rendering). Defines the contract between LLM manifest authors and the rendering engine.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T01:30:00Z",
+  "depends_on": ["OBJ-001"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 1 contract. The most critical contract -- defines the authoring interface. Spec approved after 4-round deliberation. Two-phase validation (Zod structural + registry-backed semantic). 14 error codes with severity levels. 34 acceptance criteria."
+}

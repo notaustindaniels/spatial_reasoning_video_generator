@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-027",
+  "description": "Push/pull camera path presets -- slow_push_forward (camera moves from z=5 toward z=-3, creating the 'moving into the scene' effect) and slow_pull_back (reverse). Mathematical mirrors with swapped start/end positions; one spec covers both. The defining 2.5D motion per Section 4.3. Defines position(t), lookAt(t), easing defaults, compatible geometries, and direction-dependent oversizing requirements.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "status": "specified",
+  "review_status": "approved",
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. The most important camera motion for 2.5D projection. Spec deliberation resolved: direction-dependent oversize factors (push=1.0, pull=1.7), symmetric-easing-only mirror relationship, pure Z-axis motion with fixed lookAt at [0,0,-30]."
+}

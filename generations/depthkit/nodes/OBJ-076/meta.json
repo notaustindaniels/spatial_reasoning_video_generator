@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-076",
+  "description": "Semantic cache validation plan -- threshold tuning methodology for the 0.92 cosine similarity cutoff (TC-17: cached images acceptable 90% of the time), cross-slot contamination test procedure (TC-18: slot_type filter prevents subject/sky confusion), cache hit rate measurement at steady state (TC-19: 30-60% after 50+ videos), and embedding+query latency benchmark (TC-20: under 500ms per image).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-054"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 validation plan. Covers TC-17, TC-18, TC-19, TC-20."
+}

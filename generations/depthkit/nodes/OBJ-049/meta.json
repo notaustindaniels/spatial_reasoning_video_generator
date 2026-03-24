@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-049",
+  "description": "Software rendering configuration -- SwiftShader/ANGLE flags for headless Chromium, --disable-gpu and related Puppeteer launch args for software WebGL, GPU detection and optional GPU acceleration flags when available. Ensures correctness with software rendering per C-11 (engine must render correctly without GPU passthrough).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-012"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 interface. Covers C-11. Spec delivers rendering-config.ts module with resolveRenderingConfig(), probeWebGLRenderer(), validateWebGLCapabilities(). Supplementary args only — no duplication with OBJ-009. Three GPU modes: software/hardware/auto. Auto mode probes and logs without re-launch.",
+  "status": "specified",
+  "review_status": "approved"
+}

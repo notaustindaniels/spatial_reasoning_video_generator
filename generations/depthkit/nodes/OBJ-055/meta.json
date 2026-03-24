@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-055",
+  "description": "n8n HTTP endpoint and job lifecycle -- Express/Fastify server wrapping the depthkit library API. POST endpoint accepts topic and duration, returns job ID. Poll endpoint returns job status (queued/rendering/complete/failed). Download endpoint returns MP4. Async job queue for managing concurrent render requests. Status management and cleanup. Per SC-05 (n8n integration works).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-047"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. Medium priority. Split from original OBJ-055 (Round 2 Issue 1). HTTP/job lifecycle only -- manifest generation is OBJ-056, asset orchestration is OBJ-057."
+}

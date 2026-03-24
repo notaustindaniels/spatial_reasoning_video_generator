@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-041",
+  "description": "Geometry-camera spatial compatibility validation -- cross-reference validation ensuring camera paths are compatible with chosen geometries (a tunnel_push doesn't work on a stage geometry), oversizing sufficiency checks. Produces spatial validation rules that feed into the manifest validation pipeline (OBJ-017 handles structural validation; OBJ-041 handles spatial compatibility). TC-08 coverage analysis (do 8 geometries cover the design space).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T17:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 spatial feature. Boundary clarification: structural validation = OBJ-017, spatial compatibility = OBJ-041. Spec defines three-tier validation: scene-level compatibility, registry-level bidirectional consistency, and conservative oversizing sufficiency checks using OversizeRequirements metadata. Coverage analysis utility for TC-08. OBJ-040 provides precise trajectory-sampling validation; OBJ-041 provides simplified conservative gate.",
+  "status": "specced",
+  "review_status": "approved"
+}

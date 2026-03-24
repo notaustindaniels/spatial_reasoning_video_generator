@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-072",
+  "description": "SKILL.md prompt templates, common patterns, and anti-patterns -- image generation prompt templates per depth slot type (far_bg, mid_bg, midground, subject, near_fg per Section 4.7), recipe patterns for common video types ('5-scene explainer', '30-second social clip'), and anti-patterns (AP-07: never put text in parallax planes, etc). Per Section 4.9.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-070", "OBJ-051"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 5 integration. Medium priority."
+}

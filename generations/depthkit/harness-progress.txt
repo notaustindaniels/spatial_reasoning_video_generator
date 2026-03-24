@@ -1,0 +1,74 @@
+DEPTHKIT HARNESS PROGRESS
+=========================
+Created: 2026-03-22
+Seed Version: 3.0
+
+DECOMPOSITION SUMMARY
+---------------------
+Total objectives: 83
+  - engine:      22 (OBJ-001,002,004,009-017,035-039,046-049,082,083)
+  - spatial:     25 (OBJ-003,005-008,018-034,040-045,079-081)
+  - tuning:      11 (OBJ-059-069)
+  - integration: 25 (OBJ-050-058,070-078)
+
+Priority breakdown:
+  - critical: 13 (OBJ-001-007,009-013,016,035,036)
+  - high:     33
+  - medium:   32
+  - low:       5
+
+DEPENDENCY TIERS
+----------------
+Tier 0 (foundations, no deps):     OBJ-001, OBJ-002, OBJ-003
+Tier 1 (contracts):                OBJ-004 through OBJ-008
+Tier 2 (parallel tracks):
+  Track A - Engine core:           OBJ-009 through OBJ-017
+  Track B - Scene geometries:      OBJ-018 through OBJ-025
+  Track C - Camera path presets:   OBJ-026 through OBJ-034
+Tier 3 (engine integration):       OBJ-035 through OBJ-045
+Tier 4 (interfaces + external):    OBJ-046 through OBJ-058
+Tier 5 (tuning + SKILL.md):        OBJ-059 through OBJ-072
+Tier 6 (validation + exploration): OBJ-073 through OBJ-083
+
+INITIAL FRONTIER
+----------------
+["OBJ-001", "OBJ-002", "OBJ-003"]
+
+CRITICAL PATH
+-------------
+OBJ-001 -> OBJ-004 -> OBJ-016 -> OBJ-035 -> OBJ-036 -> OBJ-037 -> OBJ-068
+OBJ-001 -> OBJ-009 -> OBJ-011 -> OBJ-012 -> OBJ-035 (merge)
+OBJ-001 -> OBJ-013 -> OBJ-035 (merge)
+OBJ-003 -> OBJ-005 -> OBJ-018 -> OBJ-059 -> OBJ-067 -> OBJ-078 (capstone)
+
+DELIBERATION NOTES
+------------------
+4 rounds of deliberation between Architect A (proposer) and Architect B (challenger).
+
+Key structural decisions agreed:
+1. Three parallel tracks in Tier 2 (engine core, geometries, cameras)
+2. Contract-first design (Tier 1 type contracts before implementations)
+3. n8n pipeline split into 3 focused objectives (055=HTTP, 056=manifest gen, 057=asset orchestration)
+4. E2E validation gate (OBJ-078) as capstone
+5. Director Agent workflow specified once (OBJ-058), referenced by all tuning objectives
+6. Pure global clock (OBJ-009) with per-scene normalization in scene sequencer (OBJ-036)
+7. Full cross-boundary message protocol (OBJ-011) as single source of truth
+8. Mirror camera pairs grouped (push/pull, lateral L/R) to avoid redundant specs
+
+Corrections applied in final write:
+- OBJ-056 deps fixed from [004, 069] to [004, 071] (numbering error from renumbering)
+- OBJ-039 deps: added OBJ-011 (needs message protocol for scene setup commands)
+- OBJ-078 deps: simplified to [077, 067, 068, 057, 038] (067 transitively covers 059-066)
+
+Open observation (not blocking):
+Camera paths OBJ-028 (lateral tracks), OBJ-032 (dramatic push), OBJ-033 (crane up),
+OBJ-034 (dolly zoom) are leaf nodes with no tuning validation downstream.
+Future work should add tuning coverage for these presets.
+
+COVERAGE VERIFICATION
+---------------------
+All 11 constraints (C-01 through C-11): covered
+All 20 testable claims (TC-01 through TC-20): covered with specific objective IDs
+All 7 success criteria (SC-01 through SC-07): covered
+All 10 open questions (OQ-01 through OQ-10): covered
+All 10 anti-patterns (AP-01 through AP-10): structurally addressed

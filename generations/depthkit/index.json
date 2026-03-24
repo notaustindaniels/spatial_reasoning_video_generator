@@ -1,0 +1,1278 @@
+{
+  "seed_version": "3.0",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:24:10.480293+00:00",
+  "nodes": {
+    "OBJ-001": {
+      "status": "verified",
+      "depends_on": [],
+      "blocks": [
+        "OBJ-004",
+        "OBJ-009",
+        "OBJ-010",
+        "OBJ-013"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-002": {
+      "status": "verified",
+      "depends_on": [],
+      "blocks": [
+        "OBJ-006",
+        "OBJ-008",
+        "OBJ-079"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-003": {
+      "status": "verified",
+      "depends_on": [],
+      "blocks": [
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-007",
+        "OBJ-010",
+        "OBJ-040"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-004": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-001"
+      ],
+      "blocks": [
+        "OBJ-016",
+        "OBJ-017",
+        "OBJ-044",
+        "OBJ-045",
+        "OBJ-056",
+        "OBJ-070"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-005": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-003"
+      ],
+      "blocks": [
+        "OBJ-011",
+        "OBJ-017",
+        "OBJ-018",
+        "OBJ-019",
+        "OBJ-020",
+        "OBJ-021",
+        "OBJ-022",
+        "OBJ-023",
+        "OBJ-024",
+        "OBJ-025",
+        "OBJ-036",
+        "OBJ-039",
+        "OBJ-040",
+        "OBJ-041",
+        "OBJ-042",
+        "OBJ-044",
+        "OBJ-045",
+        "OBJ-071",
+        "OBJ-080",
+        "OBJ-081"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-006": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-002",
+        "OBJ-003"
+      ],
+      "blocks": [
+        "OBJ-026",
+        "OBJ-027",
+        "OBJ-028",
+        "OBJ-029",
+        "OBJ-030",
+        "OBJ-031",
+        "OBJ-032",
+        "OBJ-033",
+        "OBJ-034",
+        "OBJ-040",
+        "OBJ-041",
+        "OBJ-045",
+        "OBJ-071",
+        "OBJ-079"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-007": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-003"
+      ],
+      "blocks": [
+        "OBJ-018",
+        "OBJ-019",
+        "OBJ-020",
+        "OBJ-021",
+        "OBJ-022",
+        "OBJ-023",
+        "OBJ-024",
+        "OBJ-025",
+        "OBJ-051",
+        "OBJ-053"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-008": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-002"
+      ],
+      "blocks": [
+        "OBJ-036",
+        "OBJ-037"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-009": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-001"
+      ],
+      "blocks": [
+        "OBJ-011",
+        "OBJ-035",
+        "OBJ-038"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-010": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-001",
+        "OBJ-003"
+      ],
+      "blocks": [
+        "OBJ-011",
+        "OBJ-015",
+        "OBJ-039",
+        "OBJ-042",
+        "OBJ-043",
+        "OBJ-044",
+        "OBJ-081",
+        "OBJ-082"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-011": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-009",
+        "OBJ-010",
+        "OBJ-005"
+      ],
+      "blocks": [
+        "OBJ-012",
+        "OBJ-039"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-012": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-011"
+      ],
+      "blocks": [
+        "OBJ-035",
+        "OBJ-043",
+        "OBJ-049"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-013": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-001"
+      ],
+      "blocks": [
+        "OBJ-014",
+        "OBJ-035",
+        "OBJ-083"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-014": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-013"
+      ],
+      "blocks": [
+        "OBJ-038"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-015": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-010"
+      ],
+      "blocks": [
+        "OBJ-039",
+        "OBJ-040",
+        "OBJ-052"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-016": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-004"
+      ],
+      "blocks": [
+        "OBJ-035",
+        "OBJ-038",
+        "OBJ-048"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-017": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-004",
+        "OBJ-005"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-018": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-059",
+        "OBJ-069",
+        "OBJ-070",
+        "OBJ-071"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-019": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-060",
+        "OBJ-071"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-020": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-061"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-021": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-062"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-022": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-063"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-023": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-064"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-024": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-065"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-025": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-066"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-026": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-059",
+        "OBJ-060",
+        "OBJ-061",
+        "OBJ-063",
+        "OBJ-064",
+        "OBJ-065",
+        "OBJ-066"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-027": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-059",
+        "OBJ-061",
+        "OBJ-063",
+        "OBJ-064",
+        "OBJ-069",
+        "OBJ-070"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-028": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-029": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-060"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-030": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-062"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-031": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-059",
+        "OBJ-060",
+        "OBJ-061",
+        "OBJ-062",
+        "OBJ-063",
+        "OBJ-065",
+        "OBJ-066"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-032": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-033": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-034": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-035": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-009",
+        "OBJ-012",
+        "OBJ-013",
+        "OBJ-016"
+      ],
+      "blocks": [
+        "OBJ-036",
+        "OBJ-046",
+        "OBJ-047",
+        "OBJ-048",
+        "OBJ-058",
+        "OBJ-059",
+        "OBJ-060",
+        "OBJ-061",
+        "OBJ-062",
+        "OBJ-063",
+        "OBJ-064",
+        "OBJ-065",
+        "OBJ-066",
+        "OBJ-068",
+        "OBJ-069",
+        "OBJ-073",
+        "OBJ-074",
+        "OBJ-077",
+        "OBJ-082",
+        "OBJ-083"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-036": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035",
+        "OBJ-005",
+        "OBJ-008"
+      ],
+      "blocks": [
+        "OBJ-037"
+      ],
+      "priority": "critical",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-037": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-036",
+        "OBJ-008"
+      ],
+      "blocks": [
+        "OBJ-068",
+        "OBJ-077"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-038": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-009",
+        "OBJ-014",
+        "OBJ-016"
+      ],
+      "blocks": [
+        "OBJ-077",
+        "OBJ-078"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-039": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-010",
+        "OBJ-005",
+        "OBJ-015",
+        "OBJ-011"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-040": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-003",
+        "OBJ-015"
+      ],
+      "blocks": [
+        "OBJ-069"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-041": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-006"
+      ],
+      "blocks": [
+        "OBJ-069"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-042": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-010"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-043": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-010",
+        "OBJ-012"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-044": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-004",
+        "OBJ-010"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-045": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-004"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-046": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035"
+      ],
+      "blocks": [
+        "OBJ-050",
+        "OBJ-070",
+        "OBJ-075",
+        "OBJ-077"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-047": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035"
+      ],
+      "blocks": [
+        "OBJ-055"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-048": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-016",
+        "OBJ-035"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-049": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-012"
+      ],
+      "blocks": [
+        "OBJ-050",
+        "OBJ-074"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-050": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-046",
+        "OBJ-049"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-051": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-054",
+        "OBJ-072"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-052": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-015"
+      ],
+      "blocks": [
+        "OBJ-057"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-053": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-007"
+      ],
+      "blocks": [
+        "OBJ-054"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-054": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-053",
+        "OBJ-051"
+      ],
+      "blocks": [
+        "OBJ-057",
+        "OBJ-076"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-055": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-047"
+      ],
+      "blocks": [
+        "OBJ-057"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-056": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-004",
+        "OBJ-071"
+      ],
+      "blocks": [
+        "OBJ-057"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-057": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-054",
+        "OBJ-052",
+        "OBJ-055",
+        "OBJ-056"
+      ],
+      "blocks": [
+        "OBJ-078"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-058": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035"
+      ],
+      "blocks": [
+        "OBJ-059",
+        "OBJ-060",
+        "OBJ-061",
+        "OBJ-062",
+        "OBJ-063",
+        "OBJ-064",
+        "OBJ-065",
+        "OBJ-066",
+        "OBJ-068"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-059": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-018",
+        "OBJ-026",
+        "OBJ-027",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-060": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-019",
+        "OBJ-026",
+        "OBJ-029",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-061": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-020",
+        "OBJ-026",
+        "OBJ-027",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-062": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-021",
+        "OBJ-030",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-063": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-022",
+        "OBJ-026",
+        "OBJ-027",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-064": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-023",
+        "OBJ-026",
+        "OBJ-027",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-065": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-024",
+        "OBJ-026",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-066": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-025",
+        "OBJ-026",
+        "OBJ-031",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-067"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-067": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-059",
+        "OBJ-060",
+        "OBJ-061",
+        "OBJ-062",
+        "OBJ-063",
+        "OBJ-064",
+        "OBJ-065",
+        "OBJ-066"
+      ],
+      "blocks": [
+        "OBJ-078"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-068": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-037",
+        "OBJ-035",
+        "OBJ-058"
+      ],
+      "blocks": [
+        "OBJ-078"
+      ],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-069": {
+      "status": "approved",
+      "depends_on": [
+        "OBJ-018",
+        "OBJ-027",
+        "OBJ-040",
+        "OBJ-041",
+        "OBJ-035"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": "needs_tuning",
+      "category": "tuning"
+    },
+    "OBJ-070": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-004",
+        "OBJ-046",
+        "OBJ-018",
+        "OBJ-027"
+      ],
+      "blocks": [
+        "OBJ-071",
+        "OBJ-072",
+        "OBJ-075"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-071": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-070",
+        "OBJ-005",
+        "OBJ-006",
+        "OBJ-018",
+        "OBJ-019"
+      ],
+      "blocks": [
+        "OBJ-056"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-072": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-070",
+        "OBJ-051"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-073": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-074": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035",
+        "OBJ-049"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-075": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-070",
+        "OBJ-046"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-076": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-054"
+      ],
+      "blocks": [],
+      "priority": "medium",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-077": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035",
+        "OBJ-046",
+        "OBJ-037",
+        "OBJ-038"
+      ],
+      "blocks": [
+        "OBJ-078"
+      ],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-078": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-077",
+        "OBJ-067",
+        "OBJ-068",
+        "OBJ-057",
+        "OBJ-038"
+      ],
+      "blocks": [],
+      "priority": "high",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "integration"
+    },
+    "OBJ-079": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-006",
+        "OBJ-002"
+      ],
+      "blocks": [],
+      "priority": "low",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-080": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-005"
+      ],
+      "blocks": [],
+      "priority": "low",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-081": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-010",
+        "OBJ-005"
+      ],
+      "blocks": [],
+      "priority": "low",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "spatial"
+    },
+    "OBJ-082": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-010",
+        "OBJ-035"
+      ],
+      "blocks": [],
+      "priority": "low",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    },
+    "OBJ-083": {
+      "status": "verified",
+      "depends_on": [
+        "OBJ-035",
+        "OBJ-013"
+      ],
+      "blocks": [],
+      "priority": "low",
+      "review_status": "approved",
+      "visual_status": null,
+      "category": "engine"
+    }
+  },
+  "dead_ends": [],
+  "vocabulary_updates": [],
+  "constraint_updates": []
+}

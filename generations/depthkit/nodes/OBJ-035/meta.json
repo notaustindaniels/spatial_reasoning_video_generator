@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-035",
+  "description": "Orchestrator -- the main render loop coordinating Puppeteer, FFmpeg, and the virtualized clock per Section 4.4 steps 1-5. Spawns Puppeteer and FFmpeg child process, iterates through frames, sends frame commands to the page, waits for render completion, captures pixels, pipes to FFmpeg, closes stdin when done. Implements C-02 (Puppeteer+Three.js+FFmpeg pipeline) and C-03 (deterministic virtualized timing) at the integration level.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:15:00Z",
+  "depends_on": ["OBJ-009", "OBJ-012", "OBJ-013", "OBJ-016"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 engine integration. The central coordination point -- most Tier 4+ objectives depend on this. Spec completed via 4-round deliberation. Key decisions: single render() method with full lifecycle ownership, always-validate manifest, explicit geometry/camera registry parameters, inline transition handling (crossfade/dip_to_black/cut), lazy setup/eager teardown (max 2 scenes active), pre-flight image existence check, explicit canvas clear for gap frames, V1 limitation on per-plane opacity (PlaneRef.opacity ignored with warning).",
+  "review_status": "approved",
+  "spec_version": "1.0"
+}

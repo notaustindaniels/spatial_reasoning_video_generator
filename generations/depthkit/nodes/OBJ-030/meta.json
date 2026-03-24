@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-030",
+  "description": "Flyover glide camera path preset -- camera moves forward on Z while positioned above the ground plane (elevated Y), looking slightly downward. Bird's-eye aerial movement feel. Defines position(t), lookAt(t), easing defaults, compatible geometries (flyover), and oversizing requirements.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Geometry-specific preset for flyover. Spec completed via 4-round deliberation.",
+  "status": "specified",
+  "review_status": "approved"
+}

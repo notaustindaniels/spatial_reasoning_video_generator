@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-029",
+  "description": "Tunnel push forward camera path preset -- deep Z-axis push specifically tuned for tunnel geometry. Appropriate near/far planes, speed calibrated so walls undergo convincing perspective distortion without flying through the end wall. Defines position(t), lookAt(t), easing defaults, compatible geometries (tunnel), and oversizing requirements.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Geometry-specific preset for the tunnel. Values calibrated to OBJ-019 tunnel geometry (end wall Z=-45, cross-section 8x6, corridor depth 50). Spec reviewed and approved via deliberation."
+}

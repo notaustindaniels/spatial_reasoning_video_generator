@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-036",
+  "description": "Scene sequencer -- routes manifest scenes to geometries, computes per-scene normalized time from the global frame/timestamp (absorbs per-scene time normalization from the virtualized clock), manages scene lifecycle (setup, active rendering, teardown), handles transition timing windows and overlap scheduling. Uses the transition contract (OBJ-008) to compute when scenes overlap.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:15:00Z",
+  "depends_on": ["OBJ-035", "OBJ-005", "OBJ-008"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "review_status": "approved",
+  "notes": "Tier 3 engine integration. Spec delivers SceneSequencer class with stateless planFrame(frame) method. Resolves OBJ-008 OQ-A (boundary conflict resolution). Fulfills OBJ-035 D13 deferral (transition easing). Uses independent single-phase fades (not OBJ-008 two-phase dip_to_black). Orchestrator integration contract specifies Phase A/C mapping."
+}

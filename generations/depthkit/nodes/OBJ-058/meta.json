@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-058",
+  "description": "Director Agent workflow specification -- critique format per Sections 10.4-10.5 (timestamped observations, directional deltas not absolute values, edge reveal reporting, physics/motion feel descriptions). HITL circuit breaker process per Section 10.3 (human reviews, approves/modifies/rejects/overrides). Convergence criteria per Section 10.7 (no Priority 1 issues, human sign-off, visual_status marked tuned). Visual Critique template. Covers TC-15 (convergence in <=5 iterations) and TC-16 (Director-tuned presets outperform blind-authored).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 integration. High priority. All 8 tuning objectives (OBJ-059 through OBJ-066) plus OBJ-068 depend on this. Spec defines: (1) HITL workflow protocol with 4 dispositions, (2) Visual Critique template with P1/P2 classification, (3) renderTestClip() utility wrapping OBJ-035 Orchestrator, (4) TuningLog JSON schema with Zod validation, (5) TC-15/TC-16 measurement frameworks, (6) Director Agent system prompt template.",
+  "status": "complete",
+  "review_status": "pending"
+}

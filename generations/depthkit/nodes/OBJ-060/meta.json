@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-060",
+  "description": "Tune tunnel geometry with default camera paths (static, tunnel_push_forward, gentle_float). Produce test renders demonstrating vanishing-point wall recession, submit to Director Agent, iterate through HITL. Validates TC-05 (tunnel produces convincing depth). Mark visual_status as tuned when human signs off.",
+  "category": "tuning",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-019", "OBJ-026", "OBJ-029", "OBJ-031", "OBJ-035", "OBJ-058"],
+  "visual_status": "needs_tuning",
+  "tuning_rounds": 0,
+  "notes": "Tier 5 tuning."
+}

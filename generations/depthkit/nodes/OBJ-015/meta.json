@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-015",
+  "description": "Texture loader and format handling -- Three.js TextureLoader usage, alpha channel detection (distinguishing images with and without transparency), aspect ratio reading from loaded textures (texture.image.width/height), handling of non-transparent images on subject/foreground planes (warning about rectangular edges). Covers C-09 (image format tolerance) and partially addresses OQ-02 (images without alpha).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-010"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Runs inside the browser page -- depends on page shell (OBJ-010). Spec defines browser-side texture loading API (loadTexture/loadTextures/getTexture/unload), alpha detection via 64x64 canvas sampling with threshold 250, Node-side checkTextureSlotCompatibility() warning utility, and dispose() integration. Blocks OBJ-039, OBJ-040, OBJ-052.",
+  "status": "specified",
+  "review_status": "approved"
+}

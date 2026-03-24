@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-020",
+  "description": "Canyon scene geometry -- tall wall planes on left and right, floor plane, open sky above. Camera pushes forward or floats upward. Good for narrow dramatic spaces. Defines slot positions, rotations, sizes, required/optional flags, compatible cameras, default camera, and fog settings per Section 4.2.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T03:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-007"],
+  "status": "specified",
+  "review_status": "approved",
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 geometry. Spec deliberation completed: 6 slots (4 required: sky, left_wall, right_wall, floor; 2 optional: end_wall, subject), 56-unit depth planes with 3-unit safety margin, 5 compatible cameras, dark blue-gray fog. All spatial values are starting points subject to OBJ-061 visual tuning."
+}

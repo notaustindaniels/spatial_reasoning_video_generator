@@ -1,0 +1,15 @@
+{
+  "id": "OBJ-013",
+  "description": "FFmpeg encoder -- child process spawn, stdin piping of raw frame data (PNG or raw RGBA buffers), H.264 encoding parameters, pixel format options, output container format (MP4). Implements the encoding half of C-02. Independent of Puppeteer -- receives raw pixel buffers via stdin regardless of their source.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-001"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 engine core. Independent of Puppeteer -- only needs project scaffolding. Spec completed via 4-round deliberation. Video-only MP4 output; audio muxing deferred to OBJ-014.",
+  "status": "specified",
+  "review_status": "approved",
+  "spec_deliberation_rounds": 4
+}

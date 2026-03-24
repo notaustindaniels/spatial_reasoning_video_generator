@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-068",
+  "description": "Transition visual validation -- crossfade and dip_to_black quality across scene boundaries. Test whether 0.5-1.0 second crossfade masks visible artifacts at scene boundaries per TC-10. Submit transition test renders to Director Agent, iterate through HITL.",
+  "category": "tuning",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-037", "OBJ-035", "OBJ-058"],
+  "visual_status": "needs_tuning",
+  "tuning_rounds": 0,
+  "notes": "Tier 5 tuning. Covers TC-10."
+}

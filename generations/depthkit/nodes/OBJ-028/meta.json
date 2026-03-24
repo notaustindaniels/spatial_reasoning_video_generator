@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-028",
+  "description": "Lateral track camera path presets -- lateral_track_left (camera translates along negative X-axis, looking slightly ahead) and lateral_track_right (mirror). Cinematic tracking shots. Defines position(t), lookAt(t), easing defaults, compatible geometries, and oversizing requirements (significant X-axis oversizing needed).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-006"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 camera path. Currently a leaf node -- no tuning objective directly references lateral tracks. Spec complete: two presets (lateral_track_left, lateral_track_right), 6-unit X displacement, static lookAt with 1-unit lead, FOV 50, ease_in_out default, recommendedOversizeFactor 2.5 (covers 9:16 portrait + lookAt rotation sweep). Compatible with stage, canyon, diorama, portal, panorama.",
+  "review_status": "approved"
+}

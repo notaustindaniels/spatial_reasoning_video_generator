@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-078",
+  "description": "End-to-end validation execution gate -- the capstone objective. Executes test plans from OBJ-077 against all tuned geometries (via OBJ-067), validated transitions (via OBJ-068), the full asset orchestration pipeline (OBJ-057), and audio sync (OBJ-038). This is the actual SC-01/SC-03/SC-05/SC-06/SC-07 gate. The project is production-ready when this objective passes.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-077", "OBJ-067", "OBJ-068", "OBJ-057", "OBJ-038"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 validation gate. Added per Round 2 Issue 3. The capstone -- everything must work together. Fixed deps per Round 4 Issue C."
+}

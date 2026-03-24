@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-048",
+  "description": "Error handling and reporting strategy -- validation errors (from manifest loader), render errors (from Puppeteer/Three.js/FFmpeg), actionable error messages with context (file paths, field names, expected vs actual), error codes for programmatic consumers, graceful degradation strategies (e.g., skip optional planes, warn on non-fatal issues).",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:15:00Z",
+  "depends_on": ["OBJ-016", "OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 4 interface. Spec complete: ErrorReport for programmatic consumers, classifyError/generateSuggestions/extractFFmpegLogTail utilities, DEGRADATION_RULES and MANIFEST_CODE_TO_DEGRADATION exported constants, consolidated error taxonomy. Plain-text CLI formatting is OBJ-046's responsibility (no overlap). Does not introduce new error classes."
+}

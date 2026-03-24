@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-069",
+  "description": "Edge reveal systematic validation -- test all geometry+camera combinations for edge reveals with the oversizing system applied. Verify that no camera path reveals the edge of any plane during its full motion range. Requires concrete geometry (OBJ-018) and camera (OBJ-027) implementations plus the oversizing system (OBJ-040) and compatibility rules (OBJ-041). Addresses TC-03 (perspective projection convincing).",
+  "category": "tuning",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-018", "OBJ-027", "OBJ-040", "OBJ-041", "OBJ-035"],
+  "visual_status": "needs_tuning",
+  "tuning_rounds": 0,
+  "spec_status": "specified",
+  "deliberation_rounds": 6,
+  "notes": "Tier 5 tuning. High priority. Fixed deps per Round 2 Issue 3 to include concrete implementations. Spec defines a systematic edge-reveal validation harness (runEdgeRevealHarness) with dual validation: OBJ-040 sampling (authoritative for facing-camera planes) + OBJ-041 analytical (authoritative for rotated planes). Produces structured reports with actionable size adjustments and visual review checklists for Director Agent workflow. Also includes generateTestManifest for rendering test clips with solid-color data URI images."
+}

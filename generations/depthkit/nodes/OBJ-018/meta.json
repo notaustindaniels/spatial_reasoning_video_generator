@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-018",
+  "description": "Stage scene geometry -- the default geometry. Large backdrop plane at z=-30, floor plane angled down from camera (rotation [-PI/2,0,0]), subject plane at z=-5. Classic 'subject in front of a background' setup with real perspective on the floor. Defines 6 slots (3 required: backdrop, floor, subject; 3 optional: sky, midground, near_fg), compatible cameras, default camera (slow_push_forward), and fog settings per Section 4.2. Addresses TC-01 (five planes sufficient).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-005", "OBJ-007"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 2 geometry. The simplest, most fundamental geometry -- used as the basis for SKILL.md examples. Spec approved after 4-round deliberation. Constructs PlaneSlot objects (OBJ-005 type), not DepthSlot (OBJ-007 type). All optional PlaneSlot fields explicitly set."
+}

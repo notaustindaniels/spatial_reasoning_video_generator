@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-043",
+  "description": "HUD layer system -- 2D overlay rendered on top of the 3D scene for titles, captions, subtitles, and UI elements. Implemented as HTML/CSS elements positioned absolutely over the Three.js canvas in headless Chromium, not affected by perspective projection. Viewport-pinned positioning. Per AP-07 (never put text in parallax planes) and OQ-03 (subtitle/caption overlay scope for V1).",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-010", "OBJ-012"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 3 spatial feature. Medium priority. Addresses OQ-03."
+}

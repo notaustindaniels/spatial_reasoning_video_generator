@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-003",
+  "description": "Coordinate system and spatial math reference -- Three.js right-handed coordinate conventions per Section 8.1-8.3, visible area formulas (visible_height = 2 * d * tan(FOV/2)), plane sizing math, and the relationship between camera distance, FOV, and visible area. This is the spatial foundation all geometry and camera specs reference.",
+  "category": "spatial",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T23:45:00Z",
+  "depends_on": [],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 0 foundation. No dependencies. Codifies spatial conventions for all geometry and camera work. Spec completed via 4-round deliberation. Exports constants (AXIS, DEFAULT_CAMERA, COMPOSITION_PRESETS, FRAME_RATES, PLANE_ROTATIONS), types (Vec3, CameraState, PlaneTransform, FrustumRect, etc.), and pure-math functions (computeFrustumRect, computePlaneSize, computeViewAxisDistance, computeAspectCorrectSize, vector utilities). Zero runtime dependencies. Key decisions: signed view-axis distance, readonly tuples for serialization, scalar oversize factor, degrees for FOV / radians for rotation.",
+  "status": "specified"
+}

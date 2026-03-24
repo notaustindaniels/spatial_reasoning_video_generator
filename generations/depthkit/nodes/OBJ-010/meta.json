@@ -1,0 +1,13 @@
+{
+  "id": "OBJ-010",
+  "description": "Three.js page shell, build/bundle strategy, and scene renderer skeleton -- HTML shell (src/page/index.html), page-side module loading strategy (CDN vs bundled Three.js, ESM vs build step via esbuild/vite), mechanism for making TypeScript geometry definitions available to the browser page, Three.js Scene/PerspectiveCamera/WebGLRenderer initialization, and WebGL canvas setup. This is the authoritative decision point for the Node.js/browser code-split architecture.",
+  "category": "engine",
+  "created_by_session": "spec-deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T01:30:00Z",
+  "depends_on": ["OBJ-001", "OBJ-003"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "review_status": "approved",
+  "notes": "Spec approved after 4-round deliberation. Key decision: Dumb Page / Smart Orchestrator architecture (D1) -- browser page is a data-driven renderer receiving pre-computed camera state per frame. Confirms OBJ-001 esbuild IIFE strategy. Exposes window.depthkit API with init/dispose/renderFrame/getRendererInfo. Antialias defaults false for C-05 determinism. SerializedGeometry types deferred to OBJ-011. Node-side types in src/engine/page-types.ts."
+}

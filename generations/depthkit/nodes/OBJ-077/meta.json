@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-077",
+  "description": "End-to-end integration test plan -- documents test procedures for SC-01 (60-second, 5-scene video renders to valid MP4), SC-03 (performance target met), SC-05 (n8n POST/poll/download works), SC-06 (no valid manifest produces render error, no invalid manifest passes validation). This is the test plan document; actual execution is OBJ-078.",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T04:00:00Z",
+  "depends_on": ["OBJ-035", "OBJ-046", "OBJ-037", "OBJ-038"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 validation plan. Delivers concrete test procedures with literal CLI commands, ffprobe assertions, and pass/fail thresholds across 5 suites (Smoke, SC-01, SC-03, SC-05, SC-06). SC-05 suite gated on OBJ-057/OBJ-075. All fixtures use only verified geometries and cameras. OBJ-078 executes these procedures.",
+  "status": "complete",
+  "review_status": null
+}

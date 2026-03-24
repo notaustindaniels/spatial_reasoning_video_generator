@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-082",
+  "description": "Browser preview mode -- localhost server with real-time requestAnimationFrame playback for human operators. A --preview CLI flag that serves the Three.js page on localhost for interactive preview of camera motions before committing to a full render. The LLM can't use it, but the human operator can. Addresses OQ-05. Low priority.",
+  "category": "engine",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-22T00:00:00Z",
+  "depends_on": ["OBJ-010", "OBJ-035"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 exploration. Low priority. Addresses OQ-05."
+}

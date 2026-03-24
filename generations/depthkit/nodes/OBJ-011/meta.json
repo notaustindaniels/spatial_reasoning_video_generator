@@ -1,0 +1,14 @@
+{
+  "id": "OBJ-011",
+  "description": "Full Puppeteer-to-page message protocol -- defines every message type crossing the Node.js/browser boundary. Includes: frame step commands (frame number, fps, totalFrames), scene setup/teardown commands (geometry instantiation, texture URLs, slot assignments), texture loading completion signals, transition signals (prepare next scene, start overlap rendering), and error reporting from page back to orchestrator. Single source of truth for the cross-boundary contract.",
+  "category": "engine",
+  "created_by_session": "spec_deliberation",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T02:00:00Z",
+  "depends_on": ["OBJ-009", "OBJ-010", "OBJ-005"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "status": "specified",
+  "review_status": "approved",
+  "notes": "Tier 2 engine core. Delivers PageProtocol class (Node-side), protocol-types.ts (shared types), and page-side extensions to window.depthkit. Key decisions: dumb page / smart orchestrator, multi-pass compositing via sequential over-paint with clearDepth() per pass, RequiredCameraState (all fields required), FogConfig imported from OBJ-005, per-slot error reporting with magenta fallback, POSIX-only paths. 35 acceptance criteria. Specified via 6-round deliberation resolving 11 issues (compositing math, depth buffer interaction, fog multi-pass tie-breaking, MeshBasicMaterial fog correctness, FrameCameraState/RequiredCameraState separation, FogConfig deduplication, POSIX path scoping, dispose atomicity, insertion-order scene IDs, empty sceneId validation, HTTP texture determinism warning)."
+}

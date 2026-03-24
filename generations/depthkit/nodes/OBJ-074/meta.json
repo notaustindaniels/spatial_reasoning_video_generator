@@ -1,0 +1,12 @@
+{
+  "id": "OBJ-074",
+  "description": "Performance benchmark plan -- procedure for benchmarking a 60-second, 30fps, 6-plane video at 1920x1080. Per-frame timing measurement, software WebGL vs GPU acceleration comparison, identification of bottlenecks (capture time, encode time, render time). Covers C-08 (under 15 minutes on 4-core VPS) and TC-02 (under 500ms per frame with software WebGL).",
+  "category": "integration",
+  "created_by_session": "initializer",
+  "created_at": "2026-03-22T00:00:00Z",
+  "updated_at": "2026-03-23T12:00:00Z",
+  "depends_on": ["OBJ-035", "OBJ-049"],
+  "visual_status": null,
+  "tuning_rounds": 0,
+  "notes": "Tier 6 validation plan. Covers C-08 and TC-02. Delivers benchmark runner module (src/benchmark/runner.ts) with self-contained reference manifest using stage geometry, zlib-generated test PNGs, per-frame timing collection, statistical percentiles, and C-08/TC-02 compliance assessment."
+}
